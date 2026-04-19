@@ -13,7 +13,7 @@ class UserRepository:
 
     async def get_by_email(self, email: str) -> User | None:
         """Fetch a user by email address."""
-        return await User.find_one(User.email == email)
+        return await User.find_one({"email": email})
 
     async def get_by_id(self, user_id: str) -> User | None:
         """Fetch a user by identifier."""

@@ -291,6 +291,21 @@ async def create_leader_action_log(
     return success_response("Leader action logged successfully.", data)
 
 
+@router.post("/superadmin/actions", status_code=status.HTTP_201_CREATED)
+async def create_superadmin_action_log(
+    payload: TeamActionLogCreate,
+    company: str | None = Query(default=None),
+    current_user: User = Depends(get_current_superadmin_user),
+) -> dict[str, Any]:
+    """Create a superadmin action log entry for the selected company/team scope."""
+    data = await dashboard_service.create_team_action_log(
+        current_user,
+        payload,
+        company=company,
+    )
+    return success_response("Superadmin action logged successfully.", data)
+
+
 @router.get("/team/actions", status_code=status.HTTP_200_OK)
 async def list_team_action_logs(
     department: str | None = Query(default=None),
@@ -441,6 +456,7 @@ async def get_superadmin_dashboard_member_detail(
 
 
 @router.get("/leader/insights", status_code=status.HTTP_200_OK)
+@router.get("/leader/ai-insights", status_code=status.HTTP_200_OK)
 async def get_leader_dashboard_insights(
     department: str | None = Query(default=None),
     team: str | None = Query(default=None),
@@ -462,6 +478,7 @@ async def get_leader_dashboard_insights(
 
 
 @router.get("/superadmin/insights", status_code=status.HTTP_200_OK)
+@router.get("/superadmin/ai-insights", status_code=status.HTTP_200_OK)
 async def get_superadmin_dashboard_insights(
     company: str | None = Query(default=None),
     department: str | None = Query(default=None),
@@ -485,6 +502,7 @@ async def get_superadmin_dashboard_insights(
 
 
 @router.get("/leader/report", status_code=status.HTTP_200_OK)
+@router.get("/leader/reports", status_code=status.HTTP_200_OK)
 async def get_leader_dashboard_report(
     department: str | None = Query(default=None),
     team: str | None = Query(default=None),
@@ -510,6 +528,7 @@ async def get_leader_dashboard_report(
 
 
 @router.get("/superadmin/report", status_code=status.HTTP_200_OK)
+@router.get("/superadmin/reports", status_code=status.HTTP_200_OK)
 async def get_superadmin_dashboard_report(
     company: str | None = Query(default=None),
     department: str | None = Query(default=None),
@@ -537,6 +556,7 @@ async def get_superadmin_dashboard_report(
 
 
 @router.get("/leader/alerts", status_code=status.HTTP_200_OK)
+@router.get("/leader/risk-alerts", status_code=status.HTTP_200_OK)
 async def get_leader_dashboard_alerts(
     department: str | None = Query(default=None),
     team: str | None = Query(default=None),
@@ -554,6 +574,7 @@ async def get_leader_dashboard_alerts(
 
 
 @router.get("/superadmin/alerts", status_code=status.HTTP_200_OK)
+@router.get("/superadmin/risk-alerts", status_code=status.HTTP_200_OK)
 async def get_superadmin_dashboard_alerts(
     company: str | None = Query(default=None),
     department: str | None = Query(default=None),
@@ -721,6 +742,24 @@ async def get_superadmin_settings_profile(
     return success_response("Superadmin profile settings fetched successfully.", data)
 
 
+@router.get("/superadmin/settings/company", status_code=status.HTTP_200_OK)
+async def get_superadmin_settings_company(
+    current_user: User = Depends(get_current_superadmin_user),
+) -> dict[str, Any]:
+    """Return the superadmin company settings page payload."""
+    data = await dashboard_service.get_superadmin_settings_company(current_user)
+    return success_response("Superadmin company settings fetched successfully.", data)
+
+
+@router.get("/superadmin/settings/scope", status_code=status.HTTP_200_OK)
+async def get_superadmin_settings_scope(
+    current_user: User = Depends(get_current_superadmin_user),
+) -> dict[str, Any]:
+    """Return the superadmin scope settings page payload."""
+    data = await dashboard_service.get_superadmin_settings_scope(current_user)
+    return success_response("Superadmin scope settings fetched successfully.", data)
+
+
 @router.get("/superadmin/settings/change-password", status_code=status.HTTP_200_OK)
 async def get_superadmin_change_password_settings(
     current_user: User = Depends(get_current_superadmin_user),
@@ -875,6 +914,31 @@ async def get_superadmin_audit_log_detail(
         company=company,
     )
     return success_response("Superadmin audit log detail fetched successfully.", data)
+
+
+@router.get("/superadmin/actions/history", status_code=status.HTTP_200_OK)
+async def get_superadmin_action_history(
+    company: str | None = Query(default=None),
+    department: str | None = Query(default=None),
+    team: str | None = Query(default=None),
+    range: str = Query(default="30d"),
+    outcome: str = Query(default="all"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=50),
+    current_user: User = Depends(get_current_superadmin_user),
+) -> dict[str, Any]:
+    """Return the superadmin action history page payload."""
+    data = await dashboard_service.get_superadmin_action_history(
+        current_user,
+        company=company,
+        department=department,
+        team=team,
+        range_key=range,
+        outcome=outcome,
+        page=page,
+        page_size=page_size,
+    )
+    return success_response("Superadmin action history fetched successfully.", data)
 
 
 @router.patch("/leader/settings/profile", status_code=status.HTTP_200_OK)

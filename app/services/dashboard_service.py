@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
+from app.core.dependencies import user_has_superadmin_access
 from app.db.repositories.action_log_repo import ActionLogRepository
 from app.db.repositories.app_setting_repo import AppSettingRepository
 from app.db.repositories.assessment_repo import AssessmentRepository
@@ -1262,17 +1263,19 @@ class DashboardService:
         range_key: str = "30d",
         start_date: date | None = None,
         end_date: date | None = None,
+        dashboard: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Return the leader AI insights page payload with OpenAI-generated narrative."""
-        dashboard = await self.get_team_dashboard(
-            current_user,
-            company=company,
-            department=department,
-            team=team,
-            range_key=range_key,
-            start_date=start_date,
-            end_date=end_date,
-        )
+        if dashboard is None:
+            dashboard = await self.get_team_dashboard(
+                current_user,
+                company=company,
+                department=department,
+                team=team,
+                range_key=range_key,
+                start_date=start_date,
+                end_date=end_date,
+            )
         top_risk = dashboard["top_risk_signal"]
         team_context = self.ai_service._build_leader_team_context(dashboard)
         recovery_score = next(
@@ -1337,17 +1340,19 @@ class DashboardService:
         range_key: str = "30d",
         start_date: date | None = None,
         end_date: date | None = None,
+        dashboard: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Return the superadmin AI insights payload shaped for organization-wide analysis."""
-        dashboard = await self.get_team_dashboard(
-            current_user,
-            company=company,
-            department=department,
-            team=team,
-            range_key=range_key,
-            start_date=start_date,
-            end_date=end_date,
-        )
+        if dashboard is None:
+            dashboard = await self.get_team_dashboard(
+                current_user,
+                company=company,
+                department=department,
+                team=team,
+                range_key=range_key,
+                start_date=start_date,
+                end_date=end_date,
+            )
         leader_payload = await self.get_leader_ai_insights(
             current_user,
             company=company,
@@ -1356,6 +1361,7 @@ class DashboardService:
             range_key=range_key,
             start_date=start_date,
             end_date=end_date,
+            dashboard=dashboard,
         )
         organization_profiles = await self.profile_repository.list_by_scope(
             dashboard["scope"]["organization_name"]
@@ -1392,6 +1398,8 @@ class DashboardService:
                 leader_payload,
                 dashboard,
             ),
+            "correlations": leader_payload["correlations"],
+            "supporting_trends": leader_payload["supporting_trends"],
         }
 
     async def get_leader_report(
@@ -1424,6 +1432,7 @@ class DashboardService:
             range_key=range_key,
             start_date=start_date,
             end_date=end_date,
+            dashboard=dashboard,
         )
         members = await self.list_leader_members(
             current_user,
@@ -1480,6 +1489,7 @@ class DashboardService:
             range_key=range_key,
             start_date=start_date,
             end_date=end_date,
+            dashboard=dashboard,
         )
         members = await self.list_leader_members(
             current_user,
@@ -1734,6 +1744,61 @@ class DashboardService:
                 ),
             },
             "save_endpoint": "/api/v1/dashboard/superadmin/settings/profile",
+        }
+
+    async def get_superadmin_settings_company(self, current_user: User) -> dict[str, Any]:
+        """Return the superadmin company settings page payload."""
+        profile = await self.profile_repository.get_by_user_id(current_user.id)
+        organization_name = (
+            profile.company
+            if profile is not None and profile.company
+            else current_user.organization_name
+        )
+        return {
+            "page_title": "Company Information",
+            "title": "Company Information",
+            "subtitle": "Update your company details.",
+            "fields": {
+                "company_name": organization_name,
+                "company_address": (
+                    profile.company_address if profile is not None else None
+                ),
+                "company_logo_url": (
+                    profile.company_logo_url if profile is not None else None
+                ),
+            },
+            "save_endpoint": "/api/v1/dashboard/superadmin/settings/company",
+        }
+
+    async def get_superadmin_settings_scope(self, current_user: User) -> dict[str, Any]:
+        """Return the superadmin scope settings page payload."""
+        profile = await self.profile_repository.get_by_user_id(current_user.id)
+        organization_name = (
+            profile.company
+            if profile is not None and profile.company
+            else current_user.organization_name
+        )
+        departments = await self.meta_service.get_departments(organization_name)
+        teams = await self.meta_service.get_teams(
+            organization_name,
+            profile.department if profile is not None else None,
+        )
+        roles = await self.meta_service.get_roles(organization_name)
+        return {
+            "page_title": "Set Team, Department, and Role",
+            "title": "Set Team, Department, and Role",
+            "subtitle": "Manage your primary organizational scope.",
+            "selected": {
+                "team": profile.team if profile is not None else None,
+                "department": profile.department if profile is not None else None,
+                "role": profile.role if profile is not None else current_user.role,
+            },
+            "options": {
+                "teams": [item["value"] for item in teams["teams"]],
+                "departments": [item["value"] for item in departments["departments"]],
+                "roles": [item["value"] for item in roles["roles"]],
+            },
+            "save_endpoint": "/api/v1/dashboard/superadmin/settings/scope",
         }
 
     async def get_superadmin_change_password_settings(
@@ -2130,6 +2195,29 @@ class DashboardService:
             },
         }
 
+    async def get_superadmin_action_history(
+        self,
+        current_user: User,
+        company: str | None = None,
+        department: str | None = None,
+        team: str | None = None,
+        range_key: str = "30d",
+        outcome: str = "all",
+        page: int = 1,
+        page_size: int = 10,
+    ) -> dict[str, Any]:
+        """Return action history for a superadmin-selected scope."""
+        return await self.get_leader_action_history(
+            current_user=current_user,
+            company=company,
+            department=department,
+            team=team,
+            range_key=range_key,
+            outcome=outcome,
+            page=page,
+            page_size=page_size,
+        )
+
     async def _get_latest_and_previous_scores(
         self,
         user_id: Any,
@@ -2288,12 +2376,37 @@ class DashboardService:
     ) -> tuple[str, str | None, str | None]:
         """Resolve team analytics scope from the user's profile and query overrides."""
         profile = await self.profile_repository.get_by_user_id(current_user.id)
-        organization_name = (
-            company
-            or (profile.company if profile is not None else current_user.organization_name)
+        profile_company = profile.company if profile is not None else current_user.organization_name
+        organization_name = company or profile_company
+
+        # If a different company is selected explicitly, do not inherit the current
+        # user's saved department/team because those values may not exist inside
+        # the selected organization and would incorrectly filter out all members.
+        use_profile_scope = (
+            profile is not None
+            and (company is None or company == profile_company)
         )
-        scope_department = department or (profile.department if profile is not None else None)
-        scope_team = team or (profile.team if profile is not None else None)
+        scope_department = (
+            department
+            if department is not None
+            else (profile.department if use_profile_scope else None)
+        )
+        scope_team = (
+            team
+            if team is not None
+            else (profile.team if use_profile_scope else None)
+        )
+
+        if organization_name is None and user_has_superadmin_access(current_user):
+            organization_options = await self.meta_service.get_organizations()
+            for option in organization_options.get("organizations", []):
+                candidate_company = option["value"]
+                candidate_profiles = await self.profile_repository.list_by_scope(
+                    candidate_company
+                )
+                if candidate_profiles:
+                    organization_name = candidate_company
+                    break
 
         if organization_name is None:
             raise HTTPException(

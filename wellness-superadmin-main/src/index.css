@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@media (min-width: 1024px) {
+  .subtract-width {
+    width: calc(100% - 18rem);
+  }
+}
+@media (max-width: 1023px) {
+  .subtract-width {
+    width: 100%;
+  }
+}

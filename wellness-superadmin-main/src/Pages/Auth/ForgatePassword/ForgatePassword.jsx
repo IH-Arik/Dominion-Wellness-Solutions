@@ -1,10 +1,39 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import navylogo from "../../../assets/image/navylogo.png";
+import api from "../../../lib/api";
+
+const RESET_EMAIL_STORAGE_KEY = "superadmin_reset_email";
+
 export default function ForgotPassword() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      await api.post("/auth/superadmin-forgot-password", { email });
+      sessionStorage.setItem(RESET_EMAIL_STORAGE_KEY, email);
+      sessionStorage.removeItem("superadmin_reset_code");
+      navigate("/verify-code");
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Failed to send OTP. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen p-6 bg-gray-100">
       <div className="grid items-center w-full max-w-6xl grid-cols-1 gap-8 md:grid-cols-2">
-        {/* LEFT PANEL */}
         <div
           style={{
             background: "linear-gradient(135deg, #0A2342 0%, #0747A6 100%)",
@@ -52,7 +81,6 @@ export default function ForgotPassword() {
           </div>
         </div>
 
-        {/* RIGHT PANEL */}
         <div className="w-full max-w-md p-8 mx-auto bg-white shadow-md rounded-2xl">
           <div className="flex justify-center mb-4 ">
             <div className=" px-5 py-2  bg-[#0052CC1A] rounded-lg">
@@ -65,33 +93,44 @@ export default function ForgotPassword() {
           </h2>
 
           <p className="mb-6 text-sm text-gray-500">
-            Enter your email address to ger a verification code for resetting
+            Enter your email address to get a verification code for resetting
             your password.
           </p>
 
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {error && (
+              <div className="p-3 text-xs text-red-600 border border-red-100 rounded-lg bg-red-50">
+                {error}
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium text-gray-700">
                 Email Address
               </label>
               <input
                 type="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="name@institution.edu"
                 className="w-full px-3 py-2 mt-1 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-         <div>
- <Link to="/verify-code">
-             <button
-              type="submit"
-              className="w-full py-2 font-medium text-white transition bg-blue-600 rounded-lg hover:bg-blue-700"
-            >
-              Next
-            </button>
-          </Link>
-
-         </div>
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-2 font-medium text-white transition rounded-lg ${
+                  loading
+                    ? "bg-blue-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                {loading ? "Sending OTP..." : "Next"}
+              </button>
+            </div>
           </form>
         </div>
       </div>

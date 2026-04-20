@@ -1,15 +1,28 @@
-import { Form, Input, Checkbox, Typography, message } from "antd";
+import { Form, Input, message } from "antd";
 import { FaRegEyeSlash } from "react-icons/fa";
 import { FaRegEye } from "react-icons/fa6";
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import navylogo from "../../../assets/image/navylogo.png";
+import api from "../../../lib/api";
+
+const RESET_EMAIL_STORAGE_KEY = "superadmin_reset_email";
+const RESET_CODE_STORAGE_KEY = "superadmin_reset_code";
 
 const NewPass = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [apiMessage, contextHolder] = message.useMessage();
+
+  useEffect(() => {
+    const email = sessionStorage.getItem(RESET_EMAIL_STORAGE_KEY);
+    const code = sessionStorage.getItem(RESET_CODE_STORAGE_KEY);
+    if (!email || !code) {
+      navigate("/forgate-password");
+    }
+  }, [navigate]);
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -20,25 +33,42 @@ const NewPass = () => {
   };
 
   const onFinish = async (values) => {
-    setLoading(true);
-    const { email, newPassword, confirmPassword } = values;
+    const email = sessionStorage.getItem(RESET_EMAIL_STORAGE_KEY);
+    const code = sessionStorage.getItem(RESET_CODE_STORAGE_KEY);
 
-    // Simulate API call
-    setTimeout(() => {
-      if (newPassword !== confirmPassword) {
-        message.error("Passwords do not match!");
-      } else {
-        message.success("Password changed successfully");
-        navigate("/sign-in");
-      }
+    if (!email || !code) {
+      apiMessage.error("Reset session expired. Start again.");
+      navigate("/forgate-password");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await api.post("/auth/superadmin-reset-password", {
+        email,
+        code,
+        new_password: values.newPassword,
+        confirm_password: values.confirmPassword,
+      });
+      sessionStorage.removeItem(RESET_EMAIL_STORAGE_KEY);
+      sessionStorage.removeItem(RESET_CODE_STORAGE_KEY);
+      apiMessage.success("Password changed successfully.");
+      navigate("/sign-in");
+    } catch (err) {
+      apiMessage.error(
+        err.response?.data?.message ||
+          "Failed to update password. Please try again."
+      );
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen p-6 bg-gray-100">
+      {contextHolder}
       <div className="grid items-center w-full max-w-6xl grid-cols-1 gap-8 md:grid-cols-2">
-        {/* LEFT PANEL */}
         <div
           style={{
             background: "linear-gradient(135deg, #0A2342 0%, #0747A6 100%)",
@@ -86,7 +116,6 @@ const NewPass = () => {
           </div>
         </div>
 
-        {/* RIGHT PANEL */}
         <div className="w-full max-w-md p-8 mx-auto bg-white shadow-md rounded-2xl">
           <div className="flex justify-center ">
             <div className=" px-5 py-2  bg-[#0052CC1A] rounded-lg">
@@ -94,26 +123,24 @@ const NewPass = () => {
             </div>
           </div>
 
-
           <Form
             name="new-password"
-            initialValues={{ remember: true }}
             onFinish={onFinish}
             layout="vertical"
             className="w-full max-w-lg px-6 bg-white md:py-20 md:px-10 rounded-2xl"
           >
             <div className="mx-auto">
               <h2 className="mb-4 text-2xl font-bold text-gray-700 md:text-3xl">
-               Set new password
+                Set new password
               </h2>
-     
             </div>
 
             <Form.Item
               name="newPassword"
               label={<p className="text-md">New Password</p>}
               rules={[
-                { required: true, message: "Please input your new password!" },
+                { required: true, message: "Please input your new password." },
+                { min: 8, message: "Password must be at least 8 characters." },
               ]}
             >
               <div className="relative flex items-center">
@@ -133,8 +160,19 @@ const NewPass = () => {
             <Form.Item
               name="confirmPassword"
               label={<p className="text-md">Confirm Password</p>}
+              dependencies={["newPassword"]}
               rules={[
-                { required: true, message: "Please confirm your password!" },
+                { required: true, message: "Please confirm your password." },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue("newPassword") === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(
+                      new Error("Passwords do not match.")
+                    );
+                  },
+                }),
               ]}
             >
               <div className="relative flex items-center">
@@ -156,16 +194,14 @@ const NewPass = () => {
 
             <Form.Item className="mt-8 text-center">
               <button
-                className="bg-[#0A2342] text-center w-full   p-2 font-semibold  text-white px-20 py-3 rounded-md "
+                className="bg-[#0A2342] text-center w-full p-2 font-semibold text-white px-20 py-3 rounded-md disabled:cursor-not-allowed disabled:opacity-70"
                 type="submit"
                 disabled={loading}
               >
-                {loading ? "Loading..." : "Update Password"}
+                {loading ? "Updating..." : "Update Password"}
               </button>
             </Form.Item>
           </Form>
-
-         
         </div>
       </div>
     </div>

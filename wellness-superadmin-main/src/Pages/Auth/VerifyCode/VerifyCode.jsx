@@ -1,45 +1,104 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import navylogo from "../../../assets/image/navylogo.png";
+import api from "../../../lib/api";
+
+const OTP_LENGTH = 4;
+const RESET_EMAIL_STORAGE_KEY = "superadmin_reset_email";
+const RESET_CODE_STORAGE_KEY = "superadmin_reset_code";
 
 const VerifyCode = () => {
-  const [code, setCode] = useState(["", "", "", "", ""]);
+  const [code, setCode] = useState(Array(OTP_LENGTH).fill(""));
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputRefs = useRef([]);
   const navigate = useNavigate();
+
   useEffect(() => {
-    inputRefs.current = inputRefs.current.slice(0, 5);
-  }, []);
+    inputRefs.current = inputRefs.current.slice(0, OTP_LENGTH);
+    const storedEmail = sessionStorage.getItem(RESET_EMAIL_STORAGE_KEY);
+    if (!storedEmail) {
+      navigate("/forgate-password");
+      return;
+    }
+    setEmail(storedEmail);
+  }, [navigate]);
+
   const handleChange = (index, value) => {
     if (value && !/^\d+$/.test(value)) return;
     const newCode = [...code];
     newCode[index] = value.slice(0, 1);
     setCode(newCode);
-    if (value && index < 4) {
+    if (value && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   };
-  const handleKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !code[index] && index > 0) {
+
+  const handleKeyDown = (index, event) => {
+    if (event.key === "Backspace" && !code[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
   };
-  const handleResend = (e) => {
-    e.preventDefault();
-    alert("Verification code resent!");
+
+  const handleResend = async (event) => {
+    event.preventDefault();
+    if (!email) return;
+
+    setError("");
+    setResending(true);
+
+    try {
+      await api.post("/auth/superadmin-resend-reset-code", { email });
+      setCode(Array(OTP_LENGTH).fill(""));
+      sessionStorage.removeItem(RESET_CODE_STORAGE_KEY);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Failed to resend OTP. Please try again."
+      );
+    } finally {
+      setResending(false);
+    }
   };
-  const handleVerify = (e) => {
-    e.preventDefault();
+
+  const handleVerify = async (event) => {
+    event.preventDefault();
     const verificationCode = code.join("");
-    navigate("/new-password");
-    alert(`Verifying code: ${verificationCode}`);
+    if (verificationCode.length !== OTP_LENGTH) {
+      setError("Please enter the 4-digit OTP.");
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+
+    try {
+      await api.post("/auth/superadmin-verify-reset-code", {
+        email,
+        code: verificationCode,
+      });
+      sessionStorage.setItem(RESET_CODE_STORAGE_KEY, verificationCode);
+      navigate("/new-password");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Invalid OTP. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const maskedEmail = email
+    ? `${email.slice(0, 2)}${"*".repeat(Math.max(email.indexOf("@") - 2, 1))}${email.slice(
+        email.indexOf("@")
+      )}`
+    : "your email";
 
   return (
-  
-
     <div className="flex items-center justify-center min-h-screen p-6 bg-gray-100">
       <div className="grid items-center w-full max-w-6xl grid-cols-1 gap-8 md:grid-cols-2">
-        {/* LEFT PANEL */}
         <div
           style={{
             background: "linear-gradient(135deg, #0A2342 0%, #0747A6 100%)",
@@ -87,7 +146,6 @@ const VerifyCode = () => {
           </div>
         </div>
 
-        {/* RIGHT PANEL */}
         <div className="w-full max-w-md p-8 mx-auto bg-white shadow-md rounded-2xl">
           <div className="flex justify-center mb-4 ">
             <div className=" px-5 py-2  bg-[#0052CC1A] rounded-lg">
@@ -95,24 +153,28 @@ const VerifyCode = () => {
             </div>
           </div>
 
-          <h2 className="mb-2 text-xl font-bold ">
-            Verify OTP
-          </h2>
+          <h2 className="mb-2 text-xl font-bold ">Verify OTP</h2>
 
           <p className="mb-6 text-sm text-gray-500">
-            Please check your email. We have sent a code to contact @gmail.com
+            Please check your email. We have sent a 4-digit code to {maskedEmail}
           </p>
 
           <form onSubmit={handleVerify} className="mt-6">
+            {error && (
+              <div className="p-3 mb-4 text-xs text-red-600 border border-red-100 rounded-lg bg-red-50">
+                {error}
+              </div>
+            )}
+
             <div className="flex justify-center gap-2">
-              {[0, 1, 2, 3, 4].map((index) => (
+              {Array.from({ length: OTP_LENGTH }, (_, index) => (
                 <input
                   key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
+                  ref={(element) => (inputRefs.current[index] = element)}
                   type="text"
                   value={code[index]}
-                  onChange={(e) => handleChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  onChange={(event) => handleChange(index, event.target.value)}
+                  onKeyDown={(event) => handleKeyDown(index, event)}
                   className="w-12 h-12 text-xl font-semibold text-center text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-300"
                   maxLength={1}
                   inputMode="numeric"
@@ -121,21 +183,23 @@ const VerifyCode = () => {
               ))}
             </div>
             <div className="flex items-center justify-between py-2">
-              <p className="text-gray-500 ">Didn't receive the email? </p>
-              <p
-                href="#"
+              <p className="text-gray-500 ">Didn't receive the email?</p>
+              <button
+                type="button"
                 onClick={handleResend}
-                className="text-sky-400 hover:text-sky-500 focus:outline-none"
+                disabled={resending}
+                className="text-sky-400 hover:text-sky-500 focus:outline-none disabled:text-sky-200"
               >
-                Resend
-              </p>
+                {resending ? "Sending..." : "Resend"}
+              </button>
             </div>
 
             <button
               type="submit"
-              className=" py-3 px-20 w-full mt-8 text-white transition-colors rounded-md bg-[#012B5D]  focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2"
+              disabled={loading}
+              className="w-full px-20 py-3 mt-8 text-white transition-colors rounded-md bg-[#012B5D] focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Verify Code
+              {loading ? "Verifying..." : "Verify Code"}
             </button>
           </form>
         </div>

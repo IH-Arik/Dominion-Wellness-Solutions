@@ -27,7 +27,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve both legacy unversioned routes, the /api prefix (for Vercel), and versioned `/api/v1` routes.
 app.include_router(api_router)
+app.include_router(api_router, prefix="/api")
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.on_event("startup")

@@ -41,7 +41,7 @@ export default function BurnoutRecommendations() {
     );
   }
 
-  if (error) {
+  if (error || !data) {
     return (
       <div className="flex items-center justify-center min-h-screen pt-20">
         <div className="text-lg font-medium text-rose-600">{error}</div>

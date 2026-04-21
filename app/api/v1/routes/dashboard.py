@@ -176,6 +176,10 @@ async def get_superadmin_company_dashboard(
     query: str | None = Query(default=None),
     risk_filter: str = Query(default="all"),
     sort_by: str = Query(default="performance"),
+    team: str | None = Query(default=None),
+    range: str = Query(default="30d"),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=50),
     current_user: User = Depends(get_current_superadmin_user),
@@ -187,6 +191,10 @@ async def get_superadmin_company_dashboard(
         query=query,
         risk_filter=risk_filter,
         sort_by=sort_by,
+        team=team,
+        range_key=range,
+        start_date=start_date,
+        end_date=end_date,
         page=page,
         page_size=page_size,
     )
@@ -561,6 +569,8 @@ async def get_leader_dashboard_alerts(
     department: str | None = Query(default=None),
     team: str | None = Query(default=None),
     range: str = Query(default="30d"),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     current_user: User = Depends(get_current_leader_user),
 ) -> dict[str, Any]:
     """Return leader alert detail cards."""
@@ -569,6 +579,8 @@ async def get_leader_dashboard_alerts(
         department=department,
         team=team,
         range_key=range,
+        start_date=start_date,
+        end_date=end_date,
     )
     return success_response("Leader alerts fetched successfully.", data)
 
@@ -580,6 +592,8 @@ async def get_superadmin_dashboard_alerts(
     department: str | None = Query(default=None),
     team: str | None = Query(default=None),
     range: str = Query(default="30d"),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     current_user: User = Depends(get_current_superadmin_user),
 ) -> dict[str, Any]:
     """Return superadmin alert detail cards."""
@@ -589,6 +603,8 @@ async def get_superadmin_dashboard_alerts(
         department=department,
         team=team,
         range_key=range,
+        start_date=start_date,
+        end_date=end_date,
     )
     return success_response("Superadmin alerts fetched successfully.", data)
 
@@ -726,10 +742,18 @@ async def get_leader_dashboard_settings(
 
 @router.get("/superadmin/settings", status_code=status.HTTP_200_OK)
 async def get_superadmin_dashboard_settings(
+    company: str | None = Query(default=None),
+    department: str | None = Query(default=None),
+    team: str | None = Query(default=None),
     current_user: User = Depends(get_current_superadmin_user),
 ) -> dict[str, Any]:
     """Return the superadmin settings menu payload."""
-    data = await dashboard_service.get_superadmin_settings_menu(current_user)
+    data = await dashboard_service.get_superadmin_settings_menu(
+        current_user,
+        company=company,
+        department=department,
+        team=team,
+    )
     return success_response("Superadmin settings fetched successfully.", data)
 
 
@@ -753,10 +777,18 @@ async def get_superadmin_settings_company(
 
 @router.get("/superadmin/settings/scope", status_code=status.HTTP_200_OK)
 async def get_superadmin_settings_scope(
+    company: str | None = Query(default=None),
+    department: str | None = Query(default=None),
+    team: str | None = Query(default=None),
     current_user: User = Depends(get_current_superadmin_user),
 ) -> dict[str, Any]:
     """Return the superadmin scope settings page payload."""
-    data = await dashboard_service.get_superadmin_settings_scope(current_user)
+    data = await dashboard_service.get_superadmin_settings_scope(
+        current_user,
+        company=company,
+        department=department,
+        team=team,
+    )
     return success_response("Superadmin scope settings fetched successfully.", data)
 
 

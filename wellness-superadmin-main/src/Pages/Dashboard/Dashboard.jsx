@@ -39,8 +39,11 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const { loading, isRefreshing, beginLoading, finishLoading } = useRefetchAwareLoading();
   const [searchParams] = useSearchParams();
+  const company = searchParams.get("company") || undefined;
   const range = searchParams.get("range") || "30d";
   const team = searchParams.get("team") || undefined;
+  const startDate = searchParams.get("start_date") || undefined;
+  const endDate = searchParams.get("end_date") || undefined;
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -49,8 +52,11 @@ export default function Dashboard() {
         setError(null);
         const response = await api.get(getDashboardPath(), {
           params: {
+            company,
             range,
             team,
+            start_date: startDate,
+            end_date: endDate,
           },
         });
         setData(response.data.data);
@@ -63,7 +69,7 @@ export default function Dashboard() {
     };
 
     fetchDashboardData();
-  }, [range, team, beginLoading, finishLoading]);
+  }, [company, range, team, startDate, endDate, beginLoading, finishLoading]);
 
   if (loading && !data) {
     return <FullPageLoadingState label="Loading Dashboard..." />;

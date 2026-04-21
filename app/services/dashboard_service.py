@@ -716,23 +716,50 @@ class DashboardService:
         sort_by: str = "performance",
         page: int = 1,
         page_size: int = 10,
+        team: str | None = None,
+        range_key: str = "30d",
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict[str, Any]:
         """Return the company performance dashboard for a selected organization."""
+        dashboard = await self.get_team_dashboard(
+            current_user,
+            company=company,
+            team=team,
+            range_key=range_key,
+            start_date=start_date,
+            end_date=end_date,
+        )
         members = await self.list_leader_members(
             current_user,
             company=company,
+            team=team,
             query=query,
             risk_filter=risk_filter,
             sort_by=sort_by,
             page=page,
             page_size=page_size,
         )
+        organization_profiles = await self.profile_repository.list_by_scope(company)
+        available_teams = sorted(
+            {profile.team for profile in organization_profiles if profile.team}
+        )
         return {
             "page_title": "Company Performance Dashboard",
             "subtitle": "Last updated: 5 minutes ago",
             "company": company,
+            "scope": dashboard["scope"],
+            "selected_range": dashboard["selected_range"],
+            "available_ranges": dashboard["available_ranges"],
+            "available_teams": available_teams,
             "summary_cards": members["summary_cards"],
-            "filters": members["filters"],
+            "filters": {
+                **members["filters"],
+                "team": dashboard["scope"]["team"],
+                "range": dashboard["selected_range"],
+                "start_date": start_date.isoformat() if start_date is not None else None,
+                "end_date": end_date.isoformat() if end_date is not None else None,
+            },
             "members": members,
         }
 
@@ -939,6 +966,8 @@ class DashboardService:
         department: str | None = None,
         team: str | None = None,
         range_key: str = "30d",
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict[str, Any]:
         """Return leader-facing alert detail payload."""
         dashboard = await self.get_team_dashboard(
@@ -947,6 +976,8 @@ class DashboardService:
             department=department,
             team=team,
             range_key=range_key,
+            start_date=start_date,
+            end_date=end_date,
         )
         top_risk = dashboard["top_risk_signal"]
         alert_summary = dashboard["alert_summary"]
@@ -984,6 +1015,8 @@ class DashboardService:
         department: str | None = None,
         team: str | None = None,
         range_key: str = "30d",
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict[str, Any]:
         """Return the superadmin risk and alerts page payload."""
         dashboard = await self.get_team_dashboard(
@@ -992,6 +1025,8 @@ class DashboardService:
             department=department,
             team=team,
             range_key=range_key,
+            start_date=start_date,
+            end_date=end_date,
         )
         organization_name = dashboard["scope"]["organization_name"]
         organization_profiles = await self.profile_repository.list_by_scope(organization_name)
@@ -1680,9 +1715,21 @@ class DashboardService:
             },
         }
 
-    async def get_superadmin_settings_menu(self, current_user: User) -> dict[str, Any]:
+    async def get_superadmin_settings_menu(
+        self,
+        current_user: User,
+        company: str | None = None,
+        department: str | None = None,
+        team: str | None = None,
+    ) -> dict[str, Any]:
         """Return the superadmin settings menu page payload."""
         profile = await self.profile_repository.get_by_user_id(current_user.id)
+        scope_configuration = await self.get_superadmin_settings_scope(
+            current_user,
+            company=company,
+            department=department,
+            team=team,
+        )
         return {
             "page_title": "Settings",
             "account_summary": {
@@ -1719,6 +1766,16 @@ class DashboardService:
                     "endpoint": "/api/v1/dashboard/superadmin/settings/about-us",
                 },
             ],
+            "scope": scope_configuration["scope"],
+            "scope_configuration": {
+                "title": scope_configuration["title"],
+                "subtitle": scope_configuration["subtitle"],
+                "selected": scope_configuration["selected"],
+                "options": scope_configuration["options"],
+                "save_endpoint": scope_configuration["save_endpoint"],
+            },
+            "available_ranges": scope_configuration["available_ranges"],
+            "notification_action": scope_configuration["notification_action"],
         }
 
     async def get_superadmin_settings_profile(self, current_user: User) -> dict[str, Any]:
@@ -1770,33 +1827,50 @@ class DashboardService:
             "save_endpoint": "/api/v1/dashboard/superadmin/settings/company",
         }
 
-    async def get_superadmin_settings_scope(self, current_user: User) -> dict[str, Any]:
+    async def get_superadmin_settings_scope(
+        self,
+        current_user: User,
+        company: str | None = None,
+        department: str | None = None,
+        team: str | None = None,
+    ) -> dict[str, Any]:
         """Return the superadmin scope settings page payload."""
         profile = await self.profile_repository.get_by_user_id(current_user.id)
-        organization_name = (
-            profile.company
-            if profile is not None and profile.company
-            else current_user.organization_name
+        organization_name, scope_department, scope_team = await self._resolve_team_scope(
+            current_user,
+            company,
+            department,
+            team,
         )
         departments = await self.meta_service.get_departments(organization_name)
         teams = await self.meta_service.get_teams(
             organization_name,
-            profile.department if profile is not None else None,
+            scope_department,
         )
         roles = await self.meta_service.get_roles(organization_name)
         return {
+            "scope": {
+                "organization_name": organization_name,
+                "department": scope_department,
+                "team": scope_team,
+            },
             "page_title": "Set Team, Department, and Role",
             "title": "Set Team, Department, and Role",
             "subtitle": "Manage your primary organizational scope.",
             "selected": {
-                "team": profile.team if profile is not None else None,
-                "department": profile.department if profile is not None else None,
+                "team": scope_team,
+                "department": scope_department,
                 "role": profile.role if profile is not None else current_user.role,
             },
             "options": {
                 "teams": [item["value"] for item in teams["teams"]],
                 "departments": [item["value"] for item in departments["departments"]],
                 "roles": [item["value"] for item in roles["roles"]],
+            },
+            "available_ranges": ["7d", "30d", "90d", "custom"],
+            "notification_action": {
+                "label": "Risk & Alerts",
+                "path": "/risk-alerts",
             },
             "save_endpoint": "/api/v1/dashboard/superadmin/settings/scope",
         }

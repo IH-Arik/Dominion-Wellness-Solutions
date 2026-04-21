@@ -32,8 +32,11 @@ export default function AiInsights() {
   const [error, setError] = useState(null);
   const { loading, isRefreshing, beginLoading, finishLoading } = useRefetchAwareLoading();
   const [searchParams] = useSearchParams();
+  const company = searchParams.get("company") || undefined;
   const range = searchParams.get("range") || "30d";
   const team = searchParams.get("team") || undefined;
+  const startDate = searchParams.get("start_date") || undefined;
+  const endDate = searchParams.get("end_date") || undefined;
 
   useEffect(() => {
     const fetchAiInsights = async () => {
@@ -42,8 +45,11 @@ export default function AiInsights() {
         setError(null);
         const response = await api.get(getDashboardPath("ai-insights"), {
           params: {
+            company,
             range,
             team,
+            start_date: startDate,
+            end_date: endDate,
           },
         });
         setData(response.data.data);
@@ -56,7 +62,7 @@ export default function AiInsights() {
     };
 
     fetchAiInsights();
-  }, [range, team, beginLoading, finishLoading]);
+  }, [company, range, team, startDate, endDate, beginLoading, finishLoading]);
 
   if (loading && !data) {
     return <FullPageLoadingState label="Loading AI Insights..." />;

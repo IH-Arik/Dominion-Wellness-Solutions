@@ -24,6 +24,10 @@ export default function CompanyDashboard() {
   const search = params.get("query") || "";
   const filter = params.get("filter") || "All";
   const sortBy = params.get("sort") || "Performance";
+  const team = params.get("team") || undefined;
+  const range = params.get("range") || "30d";
+  const startDate = params.get("start_date") || undefined;
+  const endDate = params.get("end_date") || undefined;
   const page = parseInt(params.get("page") || "1");
 
   useEffect(() => {
@@ -33,11 +37,15 @@ export default function CompanyDashboard() {
       beginLoading();
       try {
         setError(null);
-        const response = await api.get(`/dashboard/superadmin/organizations/${companyName}`, {
+        const response = await api.get(`/dashboard/superadmin/organizations/${encodeURIComponent(companyName)}`, {
           params: {
             query: search,
-            filter: filter,
+            risk_filter: filter,
             sort_by: sortBy,
+            team,
+            range,
+            start_date: startDate,
+            end_date: endDate,
             page: page,
             page_size: 10,
           },
@@ -52,7 +60,7 @@ export default function CompanyDashboard() {
     };
 
     fetchCompanyData();
-  }, [companyName, search, filter, sortBy, page, beginLoading, finishLoading]);
+  }, [companyName, search, filter, sortBy, team, range, startDate, endDate, page, beginLoading, finishLoading]);
 
   if (loading && !data) {
     return <FullPageLoadingState label="Loading Company Dashboard..." />;

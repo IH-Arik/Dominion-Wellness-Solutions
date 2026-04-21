@@ -26,7 +26,11 @@ export default function Report() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { loading, isRefreshing, beginLoading, finishLoading } = useRefetchAwareLoading();
+  const company = searchParams.get("company") || undefined;
   const range = searchParams.get("range") || "30d";
+  const team = searchParams.get("team") || undefined;
+  const startDate = searchParams.get("start_date") || undefined;
+  const endDate = searchParams.get("end_date") || undefined;
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -34,7 +38,14 @@ export default function Report() {
       try {
         setError(null);
         const response = await api.get(getDashboardPath("report"), {
-          params: { page, range }
+          params: {
+            company,
+            team,
+            page,
+            range,
+            start_date: startDate,
+            end_date: endDate,
+          }
         });
         setData(response.data.data);
         finishLoading(true);
@@ -46,7 +57,7 @@ export default function Report() {
     };
 
     fetchReport();
-  }, [page, range, beginLoading, finishLoading]);
+  }, [company, team, page, range, startDate, endDate, beginLoading, finishLoading]);
 
   if (loading && !data) {
     return <FullPageLoadingState label="Loading Reports..." />;

@@ -23,8 +23,11 @@ export default function RiskAlerts() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { loading, isRefreshing, beginLoading, finishLoading } = useRefetchAwareLoading();
+  const company = searchParams.get("company") || undefined;
   const range = searchParams.get("range") || "7d";
   const team = searchParams.get("team") || undefined;
+  const startDate = searchParams.get("start_date") || undefined;
+  const endDate = searchParams.get("end_date") || undefined;
 
   useEffect(() => {
     const fetchRiskAlerts = async () => {
@@ -33,8 +36,11 @@ export default function RiskAlerts() {
         setError(null);
         const response = await api.get(getDashboardPath("risk-alerts"), {
           params: {
+            company,
             range,
             team,
+            start_date: startDate,
+            end_date: endDate,
           },
         });
         setData(response.data.data);
@@ -47,7 +53,7 @@ export default function RiskAlerts() {
     };
 
     fetchRiskAlerts();
-  }, [range, team, beginLoading, finishLoading]);
+  }, [company, range, team, startDate, endDate, beginLoading, finishLoading]);
 
   if (loading && !data) {
     return <FullPageLoadingState label="Loading Risk Alerts..." />;

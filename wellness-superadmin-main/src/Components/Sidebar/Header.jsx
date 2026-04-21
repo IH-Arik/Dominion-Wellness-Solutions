@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Download, ArrowLeft, Menu } from "lucide-react";
-import { useLocation, Link, useSearchParams } from "react-router-dom";
+import { Download, ArrowLeft, Bell, Menu, X } from "lucide-react";
+import { useLocation, Link, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../lib/api";
 import { getDashboardPath } from "../../lib/auth";
 
@@ -16,6 +16,13 @@ const PAGE_CONFIG = {
     subtitle: "Last updated: 5 minutes ago",
     actions: ["ranges", "team", "bell"],
     tabs: []
+  },
+  "/company-dashboard": {
+    title: "Company Dashboard",
+    subtitle: "Drill down into a selected organization and team scope.",
+    backLink: "/organization",
+    actions: ["ranges", "team", "bell"],
+    tabs: [],
   },
   "/team-members": {
     title: "Team Performance Dashboard",
@@ -63,9 +70,21 @@ export default function Header({ showDrawer }) {
   const [activeTab, setActiveTab] = useState("");
   const [settingsData, setSettingsData] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState(
+    searchParams.get("start_date") || ""
+  );
+  const [customEndDate, setCustomEndDate] = useState(
+    searchParams.get("end_date") || ""
+  );
+  const [customRangeError, setCustomRangeError] = useState("");
 
   const location = useLocation();
+  const navigate = useNavigate();
   const pathname = location.pathname;
+  const company = searchParams.get("company") || undefined;
+  const department = searchParams.get("department") || undefined;
+  const requestedTeam = searchParams.get("team") || undefined;
 
   const config = PAGE_CONFIG[pathname];
 
@@ -86,7 +105,13 @@ export default function Header({ showDrawer }) {
     let ignore = false;
     const fetchSettings = async () => {
       try {
-        const response = await api.get(getDashboardPath("settings"));
+        const response = await api.get(getDashboardPath("settings"), {
+          params: {
+            company,
+            department,
+            team: requestedTeam,
+          },
+        });
         if (!ignore) {
           setSettingsData(response.data.data);
         }
@@ -101,20 +126,36 @@ export default function Header({ showDrawer }) {
     return () => {
       ignore = true;
     };
-  }, [config?.actions, pathname]);
+  }, [company, config?.actions, department, pathname, requestedTeam]);
 
-  const selectedRange = searchParams.get("range") || "30d";
+  useEffect(() => {
+    setCustomStartDate(searchParams.get("start_date") || "");
+    setCustomEndDate(searchParams.get("end_date") || "");
+  }, [searchParams]);
+
+  const selectedRange =
+    searchParams.get("range") ||
+    (config?.actions?.includes("ranges_full") ? "7d" : "30d");
   const selectedTeam =
     searchParams.get("team") ||
     settingsData?.scope_configuration?.selected?.team ||
     settingsData?.scope?.team ||
     "";
   const teamOptions = useMemo(() => {
-    const configuredTeams = settingsData?.scope_configuration?.options?.teams || [];
+    const configuredTeams =
+      settingsData?.scope_configuration?.options?.teams ||
+      settingsData?.available_teams ||
+      [];
     const selectedScopeTeam = settingsData?.scope_configuration?.selected?.team;
     const scopeTeam = settingsData?.scope?.team;
     return [...new Set([selectedTeam, selectedScopeTeam, scopeTeam, ...configuredTeams].filter(Boolean))];
   }, [selectedTeam, settingsData]);
+  const teamSelectOptions = useMemo(
+    () => [{ label: "All Teams", value: "" }, ...teamOptions.map((option) => ({ label: option, value: option }))],
+    [teamOptions]
+  );
+  const notificationPath = settingsData?.notification_action?.path || "/risk-alerts";
+  const activeRangeLabel = selectedRange === "custom" ? "Custom" : selectedRange;
 
   function updateFilters(nextValues) {
     const next = new URLSearchParams(searchParams);
@@ -126,6 +167,48 @@ export default function Header({ showDrawer }) {
       }
     });
     setSearchParams(next);
+  }
+
+  function applyPresetRange(rangeValue) {
+    updateFilters({
+      range: rangeValue,
+      start_date: "",
+      end_date: "",
+      page: 1,
+    });
+  }
+
+  function openCustomRangeModal() {
+    setCustomRangeError("");
+    setCustomStartDate(searchParams.get("start_date") || "");
+    setCustomEndDate(searchParams.get("end_date") || "");
+    setIsCustomRangeOpen(true);
+  }
+
+  function applyCustomRange() {
+    if (!customStartDate || !customEndDate) {
+      setCustomRangeError("Select both start and end dates.");
+      return;
+    }
+
+    if (customEndDate < customStartDate) {
+      setCustomRangeError("End date cannot be earlier than start date.");
+      return;
+    }
+
+    updateFilters({
+      range: "custom",
+      start_date: customStartDate,
+      end_date: customEndDate,
+      page: 1,
+    });
+    setCustomRangeError("");
+    setIsCustomRangeOpen(false);
+  }
+
+  function openNotifications() {
+    const currentQuery = searchParams.toString();
+    navigate(`${notificationPath}${currentQuery ? `?${currentQuery}` : ""}`);
   }
 
   // Hide entirely if path is burnout details (since they have embedded special headers)
@@ -172,18 +255,21 @@ export default function Header({ showDrawer }) {
               <button
                 key={t}
                 onClick={() => {
-                  if (t === "Custom" || t === "Last 30 Days") {
+                  if (t === "Custom") {
+                    openCustomRangeModal();
                     return;
                   }
-                  updateFilters({ range: t, page: 1 });
+                  if (t === "Last 30 Days") {
+                    return;
+                  }
+                  applyPresetRange(t);
                 }}
-                disabled={t === "Custom"}
+                disabled={t === "Last 30 Days"}
                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                  (active === t || selectedRange === t)
+                  (active === t || activeRangeLabel === t)
                     ? "bg-[#0b1b36] text-white shadow"
                     : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-                } ${t === "Custom" ? "opacity-60 cursor-not-allowed" : ""}`}
-                title={t === "Custom" ? "Custom date range is not available yet." : undefined}
+                } ${t === "Last 30 Days" ? "opacity-60 cursor-not-allowed" : ""}`}
               >
                 {t}
               </button>
@@ -193,21 +279,35 @@ export default function Header({ showDrawer }) {
       }
 
       if (action === "team") {
-        if (teamOptions.length === 0) {
+        if (teamSelectOptions.length === 0) {
           return;
         }
         actionElements.push(
           <div key="custom-team" className="relative w-full sm:w-auto mt-2 sm:mt-0">
             <select
-              value={selectedTeam}
+              value={selectedTeam || ""}
               onChange={(e) => updateFilters({ team: e.target.value, page: 1 })}
               className="w-full sm:w-auto appearance-none bg-white border border-slate-200 text-sm font-bold text-slate-700 px-4 py-2 pr-8 rounded-lg shadow-sm focus:outline-none"
             >
-              {teamOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
+              {teamSelectOptions.map((option) => (
+                <option key={option.value || "all"} value={option.value}>{option.label}</option>
               ))}
             </select>
           </div>
+        );
+      }
+
+      if (action === "bell") {
+        actionElements.push(
+          <button
+            key="bell"
+            type="button"
+            onClick={openNotifications}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#19b4a3] text-white shadow-sm transition-colors hover:bg-[#119a8b]"
+            title="Risk & Alerts"
+          >
+            <Bell className="h-4 w-4" />
+          </button>
         );
       }
 
@@ -230,7 +330,8 @@ export default function Header({ showDrawer }) {
   };
 
   return (
-    <header className="flex flex-col gap-4 sm:gap-6 py-4 sm:py-6 mb-2">
+    <>
+      <header className="flex flex-col gap-4 sm:gap-6 py-4 sm:py-6 mb-2">
       
       {/* Top Row: Title/Subtitle and Configurable Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -281,6 +382,70 @@ export default function Header({ showDrawer }) {
         </div>
       )}
 
-    </header>
+      </header>
+      {isCustomRangeOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold text-[#0b1b36]">Custom Date Range</h2>
+                <p className="mt-1 text-sm text-slate-500">Choose a start and end date to filter the dashboard.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCustomRangeOpen(false)}
+                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="text-sm font-semibold text-slate-600">
+                Start Date
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(event) => setCustomStartDate(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-600">
+                End Date
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(event) => setCustomEndDate(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                />
+              </label>
+            </div>
+
+            {customRangeError ? (
+              <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+                {customRangeError}
+              </p>
+            ) : null}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCustomRangeOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={applyCustomRange}
+                className="rounded-xl bg-[#0b1b36] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#112750]"
+              >
+                Apply Range
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

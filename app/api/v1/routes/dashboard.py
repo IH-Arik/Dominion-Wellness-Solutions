@@ -209,6 +209,8 @@ async def get_superadmin_company_member_detail(
     company_name: str,
     member_user_id: str,
     range: str = Query(default="30d"),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     current_user: User = Depends(get_current_superadmin_user),
 ) -> dict[str, Any]:
     """Return member detail analysis for a member inside a selected company dashboard."""
@@ -217,6 +219,8 @@ async def get_superadmin_company_member_detail(
         company=company_name,
         member_user_id=member_user_id,
         range_key=range,
+        start_date=start_date,
+        end_date=end_date,
     )
     return success_response(
         "Superadmin company member detail fetched successfully.",
@@ -429,6 +433,8 @@ async def get_leader_dashboard_member_detail(
     department: str | None = Query(default=None),
     team: str | None = Query(default=None),
     range: str = Query(default="30d"),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     current_user: User = Depends(get_current_leader_user),
 ) -> dict[str, Any]:
     """Return the member detail analysis payload for a leader-selected member."""
@@ -438,6 +444,8 @@ async def get_leader_dashboard_member_detail(
         department=department,
         team=team,
         range_key=range,
+        start_date=start_date,
+        end_date=end_date,
     )
     return success_response("Leader member detail fetched successfully.", data)
 
@@ -449,6 +457,8 @@ async def get_superadmin_dashboard_member_detail(
     department: str | None = Query(default=None),
     team: str | None = Query(default=None),
     range: str = Query(default="30d"),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     current_user: User = Depends(get_current_superadmin_user),
 ) -> dict[str, Any]:
     """Return the superadmin member detail analysis payload."""
@@ -459,6 +469,8 @@ async def get_superadmin_dashboard_member_detail(
         department=department,
         team=team,
         range_key=range,
+        start_date=start_date,
+        end_date=end_date,
     )
     return success_response("Superadmin member detail fetched successfully.", data)
 

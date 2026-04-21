@@ -182,7 +182,7 @@ export default function TeamMembers() {
                   </td>
                   <td className="px-6 py-5">
                     <button
-                      onClick={() => navigate(`/user-details?userId=${m.user_id}`)}
+                      onClick={() => navigate(`/user-details?userId=${m.user_id}&source=team-members`)}
                       className="flex items-center gap-1.5 text-[12px] font-black text-teal-600 transition-colors hover:text-teal-800 uppercase tracking-widest"
                     >
                       View Detail

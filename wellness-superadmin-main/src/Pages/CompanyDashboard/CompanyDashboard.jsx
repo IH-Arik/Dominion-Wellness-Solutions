@@ -85,6 +85,7 @@ export default function CompanyDashboard() {
     const nextParams = new URLSearchParams({
       userId: String(userId),
       company: companyName,
+      source: "company-dashboard",
     });
     return `/user-details?${nextParams.toString()}`;
   };

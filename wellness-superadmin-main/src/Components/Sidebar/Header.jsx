@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Download, ArrowLeft, Bell, Menu, X } from "lucide-react";
 import { useLocation, Link, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../lib/api";
-import { getDashboardPath } from "../../lib/auth";
+import { getDashboardPath, getDashboardPrefix } from "../../lib/auth";
 
 const PAGE_CONFIG = {
   "/": {
@@ -31,8 +31,15 @@ const PAGE_CONFIG = {
   },
   "/team-profile": {
     title: "Member Detail Analysis",
-    backLink: "/team-members",
-    actions: [],
+    backMode: "history",
+    backFallback: "/team-members",
+    actions: ["ranges", "bell"],
+  },
+  "/user-details": {
+    title: "User Details",
+    backMode: "history",
+    backFallback: "/users",
+    actions: ["ranges", "bell"],
   },
   "/ai-insights": {
     title: "AI Insights",
@@ -85,6 +92,7 @@ export default function Header({ showDrawer }) {
   const company = searchParams.get("company") || undefined;
   const department = searchParams.get("department") || undefined;
   const requestedTeam = searchParams.get("team") || undefined;
+  const source = searchParams.get("source") || undefined;
 
   const config = PAGE_CONFIG[pathname];
 
@@ -157,6 +165,35 @@ export default function Header({ showDrawer }) {
   const notificationPath = settingsData?.notification_action?.path || "/risk-alerts";
   const activeRangeLabel = selectedRange === "custom" ? "Custom" : selectedRange;
 
+  const backNavigation = useMemo(() => {
+    if (!config) {
+      return { mode: "link", target: "/" };
+    }
+
+    if (config.backMode === "history") {
+      if (pathname === "/user-details") {
+        if (source === "company-dashboard" && company) {
+          return {
+            mode: "history",
+            fallback: `/company-dashboard?company=${encodeURIComponent(company)}`,
+          };
+        }
+        if (source === "team-members" || getDashboardPrefix() === "leader") {
+          return { mode: "history", fallback: "/team-members" };
+        }
+        return { mode: "history", fallback: config.backFallback || "/users" };
+      }
+
+      if (pathname === "/team-profile") {
+        return { mode: "history", fallback: config.backFallback || "/team-members" };
+      }
+
+      return { mode: "history", fallback: config.backFallback || "/" };
+    }
+
+    return { mode: "link", target: config.backLink || "/" };
+  }, [company, config, pathname, source]);
+
   function updateFilters(nextValues) {
     const next = new URLSearchParams(searchParams);
     Object.entries(nextValues).forEach(([key, value]) => {
@@ -209,6 +246,19 @@ export default function Header({ showDrawer }) {
   function openNotifications() {
     const currentQuery = searchParams.toString();
     navigate(`${notificationPath}${currentQuery ? `?${currentQuery}` : ""}`);
+  }
+
+  function goBack() {
+    if (backNavigation.mode === "history") {
+      if (window.history.length > 1) {
+        navigate(-1);
+        return;
+      }
+      navigate(backNavigation.fallback || "/");
+      return;
+    }
+
+    navigate(backNavigation.target || "/");
   }
 
   // Hide entirely if path is burnout details (since they have embedded special headers)
@@ -345,11 +395,21 @@ export default function Header({ showDrawer }) {
             <Menu className="w-5 h-5" />
           </button>
           
-          {backLink && (
-            <Link to={backLink} className="p-1 sm:p-0 text-slate-500 hover:text-slate-800 transition-colors mt-0.5 sm:mt-1">
-              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-            </Link>
-          )}
+          {(backLink || config.backMode) ? (
+            backNavigation.mode === "link" ? (
+              <Link to={backNavigation.target} className="p-1 sm:p-0 text-slate-500 hover:text-slate-800 transition-colors mt-0.5 sm:mt-1">
+                <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={goBack}
+                className="p-1 sm:p-0 text-slate-500 hover:text-slate-800 transition-colors mt-0.5 sm:mt-1"
+              >
+                <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            )
+          ) : null}
           <div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-[#0b1b36] tracking-tight">{title}</h1>
             {subtitle && <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-1">{subtitle}</p>}

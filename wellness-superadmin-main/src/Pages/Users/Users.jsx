@@ -60,6 +60,17 @@ export default function User() {
   const items = data.items || [];
   const totalPages = data.pagination?.total_pages || 1;
 
+  const buildMemberDetailsUrl = (member) => {
+    const nextParams = new URLSearchParams({
+      userId: String(member.user_id),
+      source: "users",
+    });
+    if (member.company) {
+      nextParams.set("company", member.company);
+    }
+    return `/user-details?${nextParams.toString()}`;
+  };
+
   return (
     <div className="relative min-h-screen p-6 mt-20 bg-[#f9fafb] font-sans" style={{ fontFamily: "'Inter', sans-serif" }}>
       {isRefreshing ? <RefreshingOverlay label="Updating users..." /> : null}
@@ -159,7 +170,7 @@ export default function User() {
                   {/* Action */}
                   <td className="px-6 py-4">
                     <button
-                      onClick={() => navigate(`/user-details?userId=${m.user_id}`)}
+                      onClick={() => navigate(buildMemberDetailsUrl(m))}
                       className="flex items-center gap-1.5 text-[13px] font-extrabold text-teal-600 transition-colors hover:text-teal-800 whitespace-nowrap"
                     >
                       View Profile

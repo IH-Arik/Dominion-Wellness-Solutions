@@ -769,6 +769,8 @@ class DashboardService:
         company: str,
         member_user_id: str,
         range_key: str = "30d",
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict[str, Any]:
         """Return the read-only member detail analysis for a selected company."""
         detail = await self.get_leader_member_detail(
@@ -776,6 +778,8 @@ class DashboardService:
             member_user_id=member_user_id,
             company=company,
             range_key=range_key,
+            start_date=start_date,
+            end_date=end_date,
         )
         detail["page_title"] = "Member Detail Analysis"
         detail["company"] = company
@@ -1171,6 +1175,8 @@ class DashboardService:
         department: str | None = None,
         team: str | None = None,
         range_key: str = "30d",
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict[str, Any]:
         """Return the leader member detail analysis payload."""
         organization_name, scope_department, scope_team = await self._resolve_team_scope(
@@ -1204,7 +1210,7 @@ class DashboardService:
             weekly,
             monthly,
         )
-        range_days = self._resolve_range_days(range_key)
+        range_days = self._resolve_range_days(range_key, start_date, end_date)
         primary_risk_signal = self._build_member_primary_risk_signal(
             latest_score,
             burnout_payload,
@@ -1246,7 +1252,12 @@ class DashboardService:
             "indicator_cards": self._build_member_indicator_cards(
                 burnout_payload["dashboard_indicators"]
             ),
-            "ops_score_trend": self._build_member_ops_trend(member_scores, range_days),
+            "ops_score_trend": self._build_member_ops_trend(
+                member_scores,
+                range_days,
+                start_date=start_date,
+                end_date=end_date,
+            ),
             "signals_14_day": self._build_member_signal_panel(burnout_payload["metrics"]),
             "leadership_action_log": [
                 self._serialize_action_log(item) for item in scope_actions
@@ -4195,13 +4206,17 @@ class DashboardService:
         scores: list[Score],
         days: int,
         benchmark: float = 80.0,
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict[str, Any]:
         """Return chart-ready member OPS trend with a fixed benchmark."""
-        end_date = date.today()
-        start_date = end_date - timedelta(days=max(days - 1, 0))
+        trend_end_date = end_date or date.today()
+        trend_start_date = start_date or (
+            trend_end_date - timedelta(days=max(days - 1, 0))
+        )
         points: list[dict[str, Any]] = []
-        current_day = start_date
-        while current_day <= end_date:
+        current_day = trend_start_date
+        while current_day <= trend_end_date:
             score = self._get_latest_score_before(scores, current_day)
             points.append(
                 {
@@ -5040,6 +5055,8 @@ class DashboardService:
         """Serialize a leader action log."""
         if action_log is None:
             return None
+        scope_label = action_log.team or action_log.department or "Selected scope"
+        relative_time = self._format_relative_age(action_log.created_at.date())
         return {
             "id": str(action_log.id),
             "risk_key": action_log.risk_key,
@@ -5047,8 +5064,13 @@ class DashboardService:
             "note": action_log.note,
             "selected_from_recommended": action_log.selected_from_recommended,
             "created_at": action_log.created_at.isoformat(),
+            "created_at_label": relative_time,
+            "relative_time": relative_time,
             "department": action_log.department,
             "team": action_log.team,
+            "scope_label": scope_label,
+            "title": action_log.action,
+            "description": action_log.note or f"Logged for {scope_label}.",
         }
 
     def _derive_company_risk_badge(self, dashboard: dict[str, Any]) -> str:

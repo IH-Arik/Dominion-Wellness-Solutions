@@ -426,6 +426,11 @@ class DashboardService:
             if latest_scores
             else None
         )
+        last_updated_at = (
+            max(score.created_at for score in latest_scores).isoformat()
+            if latest_scores
+            else None
+        )
         average_driver_scores = self._average_driver_scores(latest_scores)
         average_condition = (
             self._derive_score_label(average_ops) if average_ops is not None else "Not Enough Data"
@@ -525,6 +530,7 @@ class DashboardService:
             "leader_nudges": leader_nudges,
             "ops_trend": ops_trend,
             "alert_summary": alert_summary,
+            "last_updated_at": last_updated_at,
         }
 
     async def list_leader_members(

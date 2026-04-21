@@ -7,13 +7,11 @@ import { getDashboardPath, getDashboardPrefix } from "../../lib/auth";
 const PAGE_CONFIG = {
   "/": {
     title: "Team Performance Dashboard",
-    subtitle: "Last updated: 5 minutes ago",
     actions: ["ranges", "team", "bell"],
     tabs: []
   },
   "/dashboard": {
     title: "Team Performance Dashboard",
-    subtitle: "Last updated: 5 minutes ago",
     actions: ["ranges", "team", "bell"],
     tabs: []
   },
@@ -31,8 +29,7 @@ const PAGE_CONFIG = {
   },
   "/team-members": {
     title: "Team Performance Dashboard",
-    subtitle: "Last updated: 5 minutes ago",
-    actions: ["team"],
+    actions: ["ranges", "team", "bell"],
   },
   "/team-profile": {
     title: "Member Detail Analysis",
@@ -82,6 +79,7 @@ const PAGE_CONFIG = {
 };
 
 const RANGE_LABELS = ["7d", "30d", "90d", "Custom"];
+const LIVE_UPDATE_PATHS = new Set(["/", "/dashboard", "/team-members"]);
 
 function buildNotificationItems(payload) {
   const items = [];
@@ -139,6 +137,45 @@ function buildNotificationItems(payload) {
   });
 
   return uniqueItems.slice(0, 5);
+}
+
+function formatRelativeUpdate(isoValue) {
+  if (!isoValue) {
+    return "";
+  }
+
+  const timestamp = new Date(isoValue);
+  if (Number.isNaN(timestamp.getTime())) {
+    return "";
+  }
+
+  const diffMs = Date.now() - timestamp.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) {
+    return "Last updated: just now";
+  }
+  if (diffMinutes === 1) {
+    return "Last updated: 1 minute ago";
+  }
+  if (diffMinutes < 60) {
+    return `Last updated: ${diffMinutes} minutes ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours === 1) {
+    return "Last updated: 1 hour ago";
+  }
+  if (diffHours < 24) {
+    return `Last updated: ${diffHours} hours ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) {
+    return "Last updated: 1 day ago";
+  }
+
+  return `Last updated: ${diffDays} days ago`;
 }
 
 function slugifySegment(value, fallback = "scope") {
@@ -339,6 +376,7 @@ function flattenReportForExport(reportData, exportContext) {
 export default function Header({ showDrawer }) {
   const [activeTab, setActiveTab] = useState("");
   const [settingsData, setSettingsData] = useState(null);
+  const [dashboardUpdatedAt, setDashboardUpdatedAt] = useState("");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notificationItems, setNotificationItems] = useState([]);
   const [notificationError, setNotificationError] = useState("");
@@ -354,6 +392,7 @@ export default function Header({ showDrawer }) {
   const [customRangeError, setCustomRangeError] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [subtitleTick, setSubtitleTick] = useState(0);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -408,9 +447,59 @@ export default function Header({ showDrawer }) {
   }, [company, config?.actions, department, pathname, requestedTeam]);
 
   useEffect(() => {
+    if (!LIVE_UPDATE_PATHS.has(pathname)) {
+      setDashboardUpdatedAt("");
+      return;
+    }
+
+    let ignore = false;
+    const fetchDashboardMeta = async () => {
+      try {
+        const response = await api.get(getDashboardPath(), {
+          params: {
+            company,
+            department,
+            team: requestedTeam,
+            range: searchParams.get("range") || undefined,
+            start_date: searchParams.get("start_date") || undefined,
+            end_date: searchParams.get("end_date") || undefined,
+          },
+        });
+
+        if (!ignore) {
+          setDashboardUpdatedAt(response.data?.data?.last_updated_at || "");
+        }
+      } catch (error) {
+        if (!ignore) {
+          setDashboardUpdatedAt("");
+        }
+      }
+    };
+
+    fetchDashboardMeta();
+    return () => {
+      ignore = true;
+    };
+  }, [company, department, pathname, requestedTeam, location.search]);
+
+  useEffect(() => {
     setCustomStartDate(searchParams.get("start_date") || "");
     setCustomEndDate(searchParams.get("end_date") || "");
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!dashboardUpdatedAt) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setSubtitleTick((current) => current + 1);
+    }, 60000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [dashboardUpdatedAt]);
 
   const selectedRange =
     searchParams.get("range") ||
@@ -720,7 +809,14 @@ export default function Header({ showDrawer }) {
     );
   }
 
-  const { title, subtitle, actions, tabs, backLink } = config;
+  const liveSubtitle = useMemo(() => {
+    if (!LIVE_UPDATE_PATHS.has(pathname)) {
+      return config.subtitle || "";
+    }
+    return formatRelativeUpdate(dashboardUpdatedAt);
+  }, [config.subtitle, dashboardUpdatedAt, pathname, subtitleTick]);
+
+  const { title, actions, tabs, backLink } = config;
 
   // Render Action Items
   const renderActions = () => {
@@ -931,7 +1027,7 @@ export default function Header({ showDrawer }) {
           ) : null}
           <div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-[#0b1b36] tracking-tight">{title}</h1>
-            {subtitle && <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-1">{subtitle}</p>}
+            {liveSubtitle ? <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-1">{liveSubtitle}</p> : null}
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
@@ -44,6 +44,7 @@ export default function Dashboard() {
   const team = searchParams.get("team") || undefined;
   const startDate = searchParams.get("start_date") || undefined;
   const endDate = searchParams.get("end_date") || undefined;
+  const isSuperAdminView = Boolean(company);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -91,6 +92,14 @@ export default function Dashboard() {
     sleep: <Moon className="w-5 h-5 mb-3 text-teal-600" />,
     morale: <Zap className="w-5 h-5 mb-3 text-teal-600" />,
   };
+  const opsTrendTitle = useMemo(() => {
+    if (range === "custom" && startDate && endDate) {
+      return "Team OPS Trend (Custom Range)";
+    }
+
+    const rangeLabel = range === "7d" ? "7 Days" : range === "90d" ? "90 Days" : "30 Days";
+    return `Team OPS Trend (${rangeLabel})`;
+  }, [endDate, range, startDate]);
 
   return (
     <div className="relative min-h-screen mt-20 p-6 bg-[#f9fafb] font-sans text-slate-800" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -184,7 +193,7 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1fr] gap-6">
             <div className="flex flex-col p-6 bg-white border shadow-sm border-slate-100 rounded-2xl">
-              <h3 className="mb-6 font-bold text-slate-800">Team OPS Trend (30 Days)</h3>
+              <h3 className="mb-6 font-bold text-slate-800">{opsTrendTitle}</h3>
               <div className="flex-1 w-full relative -ml-4 min-h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={data.ops_trend || []}>
@@ -287,18 +296,11 @@ export default function Dashboard() {
         </div>
       </div>
       
-      <div className="flex flex-col items-center justify-between gap-4 pt-6 pb-10 mt-8 text-xs border-t border-slate-200 sm:flex-row">
-        <span className="font-medium text-slate-400">Total Teams Monitored: {data.pagination?.total_items || 1}</span>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <button className="px-3 py-1.5 border border-slate-200 text-slate-500 rounded hover:bg-slate-50 font-medium">Previous</button>
-          {[1].map(page => (
-            <button key={page} className={`px-3 py-1.5 rounded font-medium ${page === 1 ? 'bg-[#0b1b36] text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-              {page}
-            </button>
-          ))}
-          <button className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded hover:bg-slate-50 font-medium">Next</button>
+      {isSuperAdminView ? (
+        <div className="pt-6 pb-10 mt-8 text-xs border-t border-slate-200">
+          <span className="font-medium text-slate-400">Total Teams Monitored: {data.pagination?.total_items || 1}</span>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

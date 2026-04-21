@@ -32,6 +32,7 @@ export default function UsersDetails() {
     getDashboardPrefix() === "superadmin" &&
     Boolean(company) &&
     source === "company-dashboard";
+  const hideLeadershipActionForm = getDashboardPrefix() === "superadmin";
 
   const fetchUserDetails = useCallback(async () => {
     if (!userId) {
@@ -147,6 +148,7 @@ export default function UsersDetails() {
       refreshingLabel="Updating user details..."
       onSubmitAction={data?.read_only ? undefined : handleSubmitAction}
       isSubmittingAction={isSubmittingAction}
+      hideLeadershipActionForm={hideLeadershipActionForm}
     />
   );
 }

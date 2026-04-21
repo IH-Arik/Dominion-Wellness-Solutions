@@ -7,13 +7,11 @@ import { getDashboardPath, getDashboardPrefix } from "../../lib/auth";
 const PAGE_CONFIG = {
   "/": {
     title: "Team Performance Dashboard",
-    subtitle: "Last updated: 5 minutes ago",
     actions: ["ranges", "team", "bell"],
     tabs: []
   },
   "/dashboard": {
     title: "Team Performance Dashboard",
-    subtitle: "Last updated: 5 minutes ago",
     actions: ["ranges", "team", "bell"],
     tabs: []
   },

@@ -97,7 +97,9 @@ const Sidebar = ({ closeDrawer }) => {
       
       {/* Logo */}
       <div className="px-8 py-5">
-        <img src={brandlogo} alt="logo" className="w-auto" />
+        <Link to="/" onClick={closeDrawer} className="inline-block">
+          <img src={brandlogo} alt="logo" className="w-auto cursor-pointer" />
+        </Link>
       </div>
 
       {/* Menu */}

@@ -286,19 +286,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-      
-      <div className="flex flex-col items-center justify-between gap-4 pt-6 pb-10 mt-8 text-xs border-t border-slate-200 sm:flex-row">
-        <span className="font-medium text-slate-400">Total Teams Monitored: {data.pagination?.total_items || 1}</span>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <button className="px-3 py-1.5 border border-slate-200 text-slate-500 rounded hover:bg-slate-50 font-medium">Previous</button>
-          {[1].map(page => (
-            <button key={page} className={`px-3 py-1.5 rounded font-medium ${page === 1 ? 'bg-[#0b1b36] text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-              {page}
-            </button>
-          ))}
-          <button className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded hover:bg-slate-50 font-medium">Next</button>
-        </div>
-      </div>
     </div>
   );
 }

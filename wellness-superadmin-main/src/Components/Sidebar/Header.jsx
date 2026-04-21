@@ -793,6 +793,16 @@ export default function Header({ showDrawer }) {
     };
   }, [isNotificationsOpen]);
 
+  const liveSubtitle = useMemo(() => {
+    if (!config) {
+      return "";
+    }
+    if (!LIVE_UPDATE_PATHS.has(pathname)) {
+      return config.subtitle || "";
+    }
+    return formatRelativeUpdate(dashboardUpdatedAt);
+  }, [config, dashboardUpdatedAt, pathname, subtitleTick]);
+
   // Hide entirely if path is burnout details (since they have embedded special headers)
   if (pathname === "/dashboard/burnout-recommendations" || pathname === "/dashboard/burnout-risk-details") {
     return null;
@@ -808,13 +818,6 @@ export default function Header({ showDrawer }) {
       </header>
     );
   }
-
-  const liveSubtitle = useMemo(() => {
-    if (!LIVE_UPDATE_PATHS.has(pathname)) {
-      return config.subtitle || "";
-    }
-    return formatRelativeUpdate(dashboardUpdatedAt);
-  }, [config.subtitle, dashboardUpdatedAt, pathname, subtitleTick]);
 
   const { title, actions, tabs, backLink } = config;
 

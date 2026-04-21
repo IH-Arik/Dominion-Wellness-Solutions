@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Download, ArrowLeft, Bell, Menu, X } from "lucide-react";
 import { useLocation, Link, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../lib/api";
@@ -78,9 +78,71 @@ const PAGE_CONFIG = {
 
 const RANGE_LABELS = ["7d", "30d", "90d", "Custom"];
 
+function buildNotificationItems(payload) {
+  const items = [];
+
+  (payload?.leader_nudges || []).forEach((nudge, index) => {
+    items.push({
+      id: `nudge-${index}`,
+      title: nudge.status === "warning" ? "Action Needed" : "Update",
+      summary: nudge.message,
+      meta: nudge.status || "Info",
+    });
+  });
+
+  (payload?.escalation_alerts || []).forEach((alert, index) => {
+    items.push({
+      id: `escalation-${index}`,
+      title: alert.team_name || "Escalation Alert",
+      summary: alert.summary || alert.headline,
+      meta: alert.tags?.[0] || "Escalation",
+    });
+  });
+
+  (payload?.top_risk_clusters || []).slice(0, 2).forEach((cluster, index) => {
+    items.push({
+      id: `cluster-${index}`,
+      title: cluster.title || "Risk Cluster",
+      summary: cluster.description,
+      meta:
+        cluster.team_count != null
+          ? `${cluster.team_count} teams affected`
+          : "Cluster",
+    });
+  });
+
+  if (payload?.top_risk_panel) {
+    items.push({
+      id: "top-risk-panel",
+      title: payload.top_risk_panel.headline || "Top Risk Signal",
+      summary:
+        payload.top_risk_panel.explanation ||
+        payload.top_risk_panel.status_report ||
+        "No details available.",
+      meta: payload.top_risk_panel.status || "Risk",
+    });
+  }
+
+  const uniqueItems = [];
+  const seen = new Set();
+  items.forEach((item) => {
+    const signature = `${item.title}-${item.summary}`;
+    if (!seen.has(signature)) {
+      seen.add(signature);
+      uniqueItems.push(item);
+    }
+  });
+
+  return uniqueItems.slice(0, 5);
+}
+
 export default function Header({ showDrawer }) {
   const [activeTab, setActiveTab] = useState("");
   const [settingsData, setSettingsData] = useState(null);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificationItems, setNotificationItems] = useState([]);
+  const [notificationError, setNotificationError] = useState("");
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false);
   const [customStartDate, setCustomStartDate] = useState(
@@ -93,6 +155,7 @@ export default function Header({ showDrawer }) {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const notificationsRef = useRef(null);
   const pathname = location.pathname;
   const company = searchParams.get("company") || undefined;
   const department = searchParams.get("department") || undefined;
@@ -170,6 +233,27 @@ export default function Header({ showDrawer }) {
   );
   const notificationPath = settingsData?.notification_action?.path || "/risk-alerts";
   const activeRangeLabel = selectedRange === "custom" ? "Custom" : selectedRange;
+  const notificationParams = useMemo(() => {
+    const nextParams = new URLSearchParams();
+    [
+      "company",
+      "department",
+      "team",
+      "range",
+      "start_date",
+      "end_date",
+    ].forEach((key) => {
+      const value = searchParams.get(key);
+      if (value) {
+        nextParams.set(key, value);
+      }
+    });
+    return nextParams;
+  }, [location.search]);
+  const notificationQuery = notificationParams.toString();
+  const notificationTarget = `${notificationPath}${
+    notificationQuery ? `?${notificationQuery}` : ""
+  }`;
 
   const backNavigation = useMemo(() => {
     if (!config) {
@@ -250,22 +334,23 @@ export default function Header({ showDrawer }) {
   }
 
   function openNotifications() {
-    const nextParams = new URLSearchParams();
-    [
-      "company",
-      "department",
-      "team",
-      "range",
-      "start_date",
-      "end_date",
-    ].forEach((key) => {
-      const value = searchParams.get(key);
-      if (value) {
-        nextParams.set(key, value);
-      }
-    });
-    const nextQuery = nextParams.toString();
-    navigate(`${notificationPath}${nextQuery ? `?${nextQuery}` : ""}`);
+    setIsNotificationsOpen((current) => !current);
+  }
+
+  async function loadNotifications() {
+    setIsNotificationsLoading(true);
+    setNotificationError("");
+    try {
+      const response = await api.get(getDashboardPath("risk-alerts"), {
+        params: Object.fromEntries(notificationParams.entries()),
+      });
+      setNotificationItems(buildNotificationItems(response.data.data));
+    } catch (error) {
+      setNotificationItems([]);
+      setNotificationError("Failed to load notifications.");
+    } finally {
+      setIsNotificationsLoading(false);
+    }
   }
 
   function goBack() {
@@ -280,6 +365,35 @@ export default function Header({ showDrawer }) {
 
     navigate(backNavigation.target || "/");
   }
+
+  useEffect(() => {
+    setIsNotificationsOpen(false);
+  }, [pathname, location.search]);
+
+  useEffect(() => {
+    if (!isNotificationsOpen) {
+      return;
+    }
+
+    loadNotifications();
+  }, [isNotificationsOpen, notificationParams]);
+
+  useEffect(() => {
+    if (!isNotificationsOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event) => {
+      if (!notificationsRef.current?.contains(event.target)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isNotificationsOpen]);
 
   // Hide entirely if path is burnout details (since they have embedded special headers)
   if (pathname === "/dashboard/burnout-recommendations" || pathname === "/dashboard/burnout-risk-details") {
@@ -369,15 +483,85 @@ export default function Header({ showDrawer }) {
 
       if (action === "bell") {
         actionElements.push(
-          <button
-            key="bell"
-            type="button"
-            onClick={openNotifications}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#19b4a3] text-white shadow-sm transition-colors hover:bg-[#119a8b]"
-            title="Risk & Alerts"
-          >
-            <Bell className="h-4 w-4" />
-          </button>
+          <div key="bell" ref={notificationsRef} className="relative">
+            <button
+              type="button"
+              onClick={openNotifications}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#19b4a3] text-white shadow-sm transition-colors hover:bg-[#119a8b]"
+              title="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
+
+            {isNotificationsOpen ? (
+              <div className="absolute right-0 top-12 z-50 w-[320px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                <div className="border-b border-slate-100 px-4 py-3">
+                  <h3 className="text-sm font-extrabold text-[#0b1b36]">Notifications</h3>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Latest risk updates for the current scope.
+                  </p>
+                </div>
+
+                <div className="max-h-[360px] overflow-y-auto px-4 py-3">
+                  {isNotificationsLoading ? (
+                    <div className="space-y-3 py-1">
+                      {[1, 2, 3].map((item) => (
+                        <div key={item} className="animate-pulse rounded-xl border border-slate-100 p-3">
+                          <div className="h-3 w-24 rounded bg-slate-200" />
+                          <div className="mt-2 h-3 w-full rounded bg-slate-100" />
+                          <div className="mt-2 h-3 w-4/5 rounded bg-slate-100" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : notificationError ? (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-700">
+                      <p>{notificationError}</p>
+                      <button
+                        type="button"
+                        onClick={loadNotifications}
+                        className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-bold text-rose-700 shadow-sm"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : notificationItems.length === 0 ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+                      No new notifications.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {notificationItems.map((item) => (
+                        <div key={item.id} className="rounded-xl border border-slate-100 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-sm font-bold text-slate-800">{item.title}</p>
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                              {item.meta}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                            {item.summary}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-slate-100 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNotificationsOpen(false);
+                      navigate(notificationTarget);
+                    }}
+                    className="w-full rounded-xl bg-[#0b1b36] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#112750]"
+                  >
+                    Open Risk & Alerts
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         );
       }
 

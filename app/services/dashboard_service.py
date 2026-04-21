@@ -4539,7 +4539,7 @@ class DashboardService:
         dashboard: dict[str, Any],
     ) -> dict[str, Any]:
         """Return chart series for OPS, stress, and sleep."""
-        points = dashboard["ops_trend"][-7:]
+        points = dashboard["ops_trend"]
         return {
             "selected_metrics": ["OPS Score", "Stress", "Sleep"],
             "series": [

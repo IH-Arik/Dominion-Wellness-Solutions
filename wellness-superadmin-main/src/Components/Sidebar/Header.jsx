@@ -54,7 +54,7 @@ const PAGE_CONFIG = {
   "/report": {
     title: "Reports",
     subtitle: "Overview of team metrics and performance data",
-    actions: ["ranges", "export"],
+    actions: ["ranges", "team", "export"],
   },
   "/risk-alerts": {
     title: "Risk & Alerts",

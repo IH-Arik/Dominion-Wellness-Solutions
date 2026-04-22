@@ -1156,12 +1156,22 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/questions",
+              "raw": "{{base_url}}/questions?page=1&size=5",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "questions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "5"
+                }
               ]
             }
           }
@@ -1275,13 +1285,19 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/daily-checkins/questions",
+              "raw": "{{base_url}}/daily-checkins/questions?page=1",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "daily-checkins",
                 "questions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
               ]
             }
           }
@@ -1389,13 +1405,19 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/weekly-checkins/questions",
+              "raw": "{{base_url}}/weekly-checkins/questions?page=1",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "weekly-checkins",
                 "questions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
               ]
             }
           }
@@ -1467,13 +1489,19 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/monthly-checkins/questions",
+              "raw": "{{base_url}}/monthly-checkins/questions?page=1",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "monthly-checkins",
                 "questions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
               ]
             }
           }
@@ -4712,7 +4740,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/questions",
+              "raw": "{{base_url}}/api/v1/questions?page=1&size=5",
               "host": [
                 "{{base_url}}"
               ],
@@ -4720,9 +4748,19 @@
                 "api",
                 "v1",
                 "questions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "5"
+                }
               ]
             },
-            "description": "Returns all fixed assessment questions ordered for display."
+            "description": "Returns onboarding assessment questions paginated as 5 questions per page."
           }
         }
       ]

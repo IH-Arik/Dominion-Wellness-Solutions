@@ -35,7 +35,7 @@ class AssessmentService:
 
 
 
-    async def list_questions(self, page: int = 1, size: int = 25) -> dict[str, Any]:
+    async def list_questions(self, page: int = 1, size: int = 5) -> dict[str, Any]:
         """Return the fixed question bank ordered for display, with pagination."""
         questions = await self.question_repository.list_all()
         total = len(questions)

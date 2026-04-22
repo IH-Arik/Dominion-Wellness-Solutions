@@ -8,8 +8,8 @@ from app.services.assessment_service import AssessmentService
 
 
 @pytest.mark.asyncio
-async def test_list_questions_defaults_to_25(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure the assessment questions endpoint defaults to the full 25-question bank."""
+async def test_list_questions_defaults_to_five_per_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ensure onboarding assessment questions default to 5 per page."""
     captured: dict[str, int] = {}
 
     async def fake_list_questions(page: int, size: int) -> dict[str, object]:
@@ -19,7 +19,7 @@ async def test_list_questions_defaults_to_25(monkeypatch: pytest.MonkeyPatch) ->
             "total": 25,
             "page": page,
             "size": size,
-            "total_pages": 1,
+            "total_pages": 5,
             "questions": [],
         }
 
@@ -27,9 +27,10 @@ async def test_list_questions_defaults_to_25(monkeypatch: pytest.MonkeyPatch) ->
 
     response = await question_routes.list_questions()
 
-    assert captured == {"page": 1, "size": 25}
+    assert captured == {"page": 1, "size": 5}
     assert response["success"] is True
-    assert response["data"]["size"] == 25
+    assert response["data"]["size"] == 5
+    assert response["data"]["total_pages"] == 5
 
 
 def test_serialize_question_uses_stable_question_code() -> None:

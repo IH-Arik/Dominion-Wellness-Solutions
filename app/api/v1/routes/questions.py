@@ -16,7 +16,7 @@ assessment_service = AssessmentService()
 @router.get("", status_code=status.HTTP_200_OK)
 async def list_questions(
     page: int = 1,
-    size: int = 25,
+    size: int = 5,
 ) -> dict[str, Any]:
     """Return all fixed assessment questions ordered for display, with pagination."""
     data = await assessment_service.list_questions(page=page, size=size)

@@ -12,12 +12,5 @@ __pycache__/
 venv/
 env/
 
-streamlit_app.py
-streamlit_leader.py
-streamlit_superadmin.py
-streamlit_user.py
-
-Welldomain_API.postman_collection.json
-
 *.log
 uvicorn.log

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.core.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.assessment import CheckInCreate
+from app.schemas.assessment import AssessmentStatusRead, CheckInCreate
 from app.services.assessment_service import AssessmentService
 from app.utils.response import success_response
 
@@ -25,9 +25,12 @@ async def create_checkin(
 
 
 @router.get("/status", status_code=status.HTTP_200_OK)
-async def get_assessment_status(
+async def get_status(
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Return initial/reassessment eligibility for the authenticated user."""
     data = await assessment_service.get_reassessment_status(current_user)
-    return success_response("Assessment status fetched successfully.", data)
+    return success_response(
+        "Assessment status fetched successfully.",
+        AssessmentStatusRead(**data).model_dump(),
+    )

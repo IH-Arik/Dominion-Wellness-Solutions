@@ -141,3 +141,14 @@ class MonthlyCheckInStatusRead(BaseModel):
     current_daily_streak_days: int
     monthly_checkin_completed_this_month: bool
     last_monthly_checkin_date: datetime | None
+
+
+class AssessmentStatusRead(BaseModel):
+    """Eligibility status for the 90-day baseline assessment."""
+
+    can_submit_assessment: bool
+    is_initial_assessment: bool
+    last_assessment_date: str | None
+    next_eligible_date: str | None
+    days_remaining: int
+    lock_message: str | None

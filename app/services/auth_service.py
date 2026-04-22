@@ -220,6 +220,10 @@ class AuthService:
                 ),
             )
 
+        await self.user_repository.update_user(
+            str(user.id),
+            {"is_verified": True},
+        )
         return {}
 
     async def verify_reset_code_leader(

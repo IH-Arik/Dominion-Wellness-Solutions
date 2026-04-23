@@ -51,3 +51,10 @@ class ScoreRepository:
             Score.user_id == user_id,
             Score.checkin_id == object_id,
         )
+
+    async def delete_by_user_id(self, user_id: PydanticObjectId) -> int:
+        """Delete all score documents for a user and return the count."""
+        scores = await Score.find(Score.user_id == user_id).to_list()
+        for score in scores:
+            await score.delete()
+        return len(scores)

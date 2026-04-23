@@ -36,3 +36,10 @@ class DailyCheckInRepository:
             DailyCheckIn.submitted_at >= start_of_day,
             DailyCheckIn.submitted_at < end_of_day,
         )
+
+    async def delete_by_user_id(self, user_id: PydanticObjectId) -> int:
+        """Delete all daily check-ins for a user and return the count."""
+        checkins = await DailyCheckIn.find(DailyCheckIn.user_id == user_id).to_list()
+        for checkin in checkins:
+            await checkin.delete()
+        return len(checkins)

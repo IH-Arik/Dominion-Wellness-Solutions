@@ -5,8 +5,12 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from app.db.repositories.profile_repo import ProfileRepository
+from app.db.repositories.assessment_repo import AssessmentRepository
+from app.db.repositories.daily_checkin_repo import DailyCheckInRepository
+from app.db.repositories.monthly_checkin_repo import MonthlyCheckInRepository
 from app.db.repositories.score_repo import ScoreRepository
 from app.db.repositories.user_repo import UserRepository
+from app.db.repositories.weekly_checkin_repo import WeeklyCheckInRepository
 from app.models.user import User
 from app.utils.constants import APP_VERSION, ORGANIZATION_METADATA
 from app.utils.response import error_response
@@ -18,6 +22,10 @@ class AccountService:
     def __init__(self) -> None:
         """Initialize repository dependencies."""
         self.profile_repository = ProfileRepository()
+        self.assessment_repository = AssessmentRepository()
+        self.daily_checkin_repository = DailyCheckInRepository()
+        self.weekly_checkin_repository = WeeklyCheckInRepository()
+        self.monthly_checkin_repository = MonthlyCheckInRepository()
         self.score_repository = ScoreRepository()
         self.user_repository = UserRepository()
         self.dimension_labels = {
@@ -176,12 +184,17 @@ class AccountService:
 
     async def delete_account(self, current_user: User) -> dict[str, str]:
         """Permanently delete the authenticated user's account and profile."""
+        await self.score_repository.delete_by_user_id(current_user.id)
+        await self.assessment_repository.delete_by_user_id(current_user.id)
+        await self.daily_checkin_repository.delete_by_user_id(current_user.id)
+        await self.weekly_checkin_repository.delete_by_user_id(current_user.id)
+        await self.monthly_checkin_repository.delete_by_user_id(current_user.id)
+        await self.profile_repository.delete_by_user_id(current_user.id)
         user = await self.user_repository.delete_user(str(current_user.id))
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=error_response("User not found."),
             )
-        await self.profile_repository.delete_by_user_id(current_user.id)
         return {"action": "delete_account", "detail": "Account deleted successfully."}
 

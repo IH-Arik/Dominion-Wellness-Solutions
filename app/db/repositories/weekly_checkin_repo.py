@@ -39,3 +39,10 @@ class WeeklyCheckInRepository:
             WeeklyCheckIn.submitted_at >= start_of_week,
             WeeklyCheckIn.submitted_at < end_of_week,
         )
+
+    async def delete_by_user_id(self, user_id: PydanticObjectId) -> int:
+        """Delete all weekly check-ins for a user and return the count."""
+        checkins = await WeeklyCheckIn.find(WeeklyCheckIn.user_id == user_id).to_list()
+        for checkin in checkins:
+            await checkin.delete()
+        return len(checkins)

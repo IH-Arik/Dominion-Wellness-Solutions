@@ -40,3 +40,10 @@ class MonthlyCheckInRepository:
             MonthlyCheckIn.submitted_at >= start_of_month,
             MonthlyCheckIn.submitted_at < next_month,
         )
+
+    async def delete_by_user_id(self, user_id: PydanticObjectId) -> int:
+        """Delete all monthly check-ins for a user and return the count."""
+        checkins = await MonthlyCheckIn.find(MonthlyCheckIn.user_id == user_id).to_list()
+        for checkin in checkins:
+            await checkin.delete()
+        return len(checkins)

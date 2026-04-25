@@ -13,6 +13,8 @@ import DriverTrendSection from "../../src/components/DriverTrendSection";
 import BehaviorTrendGrid from "../../src/components/BehaviorTrendGrid";
 import PerformanceSummary from "../../src/components/PerformanceSummary";
 
+import { ReportSkeleton } from "../../src/components/ReportSkeleton";
+
 export default function ReportScreen() {
   const [selectedWeek, setSelectedWeek] = useState("all");
   const [selectedMonth, setSelectedMonth] = useState("4"); // April (1-indexed)
@@ -32,6 +34,10 @@ export default function ReportScreen() {
     if (type === "year") setSelectedYear(Number(value));
   };
 
+  if (isLoading) {
+    return <ReportSkeleton />;
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -49,15 +55,12 @@ export default function ReportScreen() {
           onFilterChange={handleFilterChange}
         />
 
-        {isLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.loadingText}>Generating your report...</Text>
-          </View>
-        ) : isError ? (
+        {isError ? (
           <View style={styles.centerContainer}>
             <Text style={styles.errorText}>Failed to load report. Please try again.</Text>
-            <Text style={styles.retryButton} onPress={() => refetch()}>Retry</Text>
+            <TouchableOpacity onPress={() => refetch()}>
+              <Text style={styles.retryButton}>Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : reportData ? (
           <>

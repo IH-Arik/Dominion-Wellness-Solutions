@@ -72,8 +72,6 @@ const SettingsScreen = () => {
     { label: 'Terms of condition', onPress: () => router.push('/terms') },
     { label: 'Privacy Policy', onPress: () => router.push('/privacy') },
     { label: 'About Us', onPress: () => router.push('/about') },
-    { label: 'Logout', onPress: handleLogout, color: '#E11D48' },
-    { label: 'Delete Account', onPress: handleDeleteAccount, color: '#E11D48' },
   ];
 
   return (

@@ -45,6 +45,8 @@ const formatTimeAgo = (isoString: string) => {
   return date.toLocaleDateString();
 };
 
+import { InsightSkeleton } from "../../src/components/InsightSkeleton";
+
 export default function InsightScreen() {
   const insets = useSafeAreaInsets();
   const { data: response, isLoading, isFetching, error, refetch } = useGetLatestInsightQuery();
@@ -70,36 +72,70 @@ export default function InsightScreen() {
     });
   }, [insightData]);
 
-  const recommendedActions = useMemo(() => {
-    if (!insightData?.improvement_plan) return [];
-    // The backend returns a string with bullet points "- Recommendation"
-    return insightData.improvement_plan
+  const parsePlan = useCallback((planString: string | undefined, defaultTitle: string, baseColor: string | ((idx: number) => string)) => {
+    if (!planString) return [];
+    return planString
       .split("\n")
       .filter((line) => line.trim().length > 0)
       .map((line, index) => {
-        const text = line.replace(/^[-\s*•]+/, "").trim();
-        // Extract title if there's a colon, otherwise use generic title
-        const [titlePart, ...descParts] = text.split(":");
+        let text = line.replace(/^[-\s*•\d.] +/, "").trim();
+        
+        // Remove common redundant prefixes that AI might add
+        const prefixesToStrip = ["Recommended Action:", "Goal:", "Risk:", "Risk Detected:", "Action:"];
+        for (const prefix of prefixesToStrip) {
+          if (text.toLowerCase().startsWith(prefix.toLowerCase())) {
+            text = text.substring(prefix.length).trim();
+          }
+        }
+
+        const colonIndex = text.indexOf(":");
+        let title = defaultTitle;
+        let desc = text;
+
+        if (colonIndex > 0 && colonIndex < 40) {
+          title = text.substring(0, colonIndex).trim();
+          desc = text.substring(colonIndex + 1).trim();
+        } else {
+          const words = text.split(/\s+/);
+          if (words.length > 2) {
+            title = words.slice(0, 2).join(" ");
+            // Don't use the first two words as title if they are just generic
+            if (title.toLowerCase() === "aim for" || title.toLowerCase() === "try to") {
+               title = defaultTitle;
+            }
+          }
+        }
+
         return {
-          id: index,
-          title: descParts.length > 0 ? titlePart.trim() : "Recommended Action",
-          desc: descParts.length > 0 ? descParts.join(":").trim() : titlePart.trim(),
-          bgColor: index % 2 === 0 ? "#00A896" : "#001F3F",
+          id: `${defaultTitle}-${index}`,
+          title: title.replace(/\*/g, ""),
+          desc: desc.replace(/\*/g, ""),
+          bgColor: typeof baseColor === "function" ? baseColor(index) : baseColor,
         };
       });
-  }, [insightData]);
+  }, []);
+
+  const recommendedActions = useMemo(() => 
+    parsePlan(insightData?.improvement_plan, "Recommended Action", "#00A896"),
+    [insightData, parsePlan]
+  );
+
+  const goalPlan = useMemo(() => 
+    parsePlan(insightData?.goal_plan, "Goal", "#2E70BD"),
+    [insightData, parsePlan]
+  );
+
+  const riskPlan = useMemo(() => 
+    parsePlan(insightData?.risk_plan, "Risk Detected", "#002D5B"),
+    [insightData, parsePlan]
+  );
 
   const onRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
 
   if (isLoading) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#00A896" />
-        <Text style={styles.loadingText}>Analyzing performance data...</Text>
-      </View>
-    );
+    return <InsightSkeleton />;
   }
 
   if (error || !insightData) {
@@ -128,14 +164,7 @@ export default function InsightScreen() {
       >
         {/* ─── Header ─── */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Menu size={24} color="#D1D5DB" strokeWidth={2.5} />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>AI Insight</Text>
-          <TouchableOpacity style={styles.bellBtn}>
-            <Bell size={20} color="#1E3A5F" strokeWidth={2} />
-            <View style={styles.notificationDot} />
-          </TouchableOpacity>
         </View>
 
         {/* ─── OPS Analysis Header ─── */}
@@ -222,18 +251,72 @@ export default function InsightScreen() {
         {/* ─── Recommended Actions ─── */}
         {recommendedActions.length > 0 && (
           <>
-            <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 16 }]}>
-              Recommended Actions
-            </Text>
+            <View style={[styles.coloredSectionHeader, { backgroundColor: "#00A896", marginTop: 24 }]}>
+              <Text style={styles.coloredSectionTitle}>Recommended Actions</Text>
+            </View>
             <View style={styles.actionsList}>
-              {recommendedActions.map((action) => (
+              {recommendedActions.map((action, idx) => (
                 <TouchableOpacity
                   key={action.id}
-                  style={[styles.actionCard, { backgroundColor: action.bgColor }]}
+                  style={[
+                    styles.actionCard, 
+                    { backgroundColor: action.bgColor },
+                    idx === 0 && { borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 } // Pull up to meet header
+                  ]}
                   activeOpacity={0.9}
                 >
                   <Text style={styles.actionTitle}>{action.title}</Text>
                   <Text style={styles.actionDesc}>{action.desc}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* ─── Goal Plan ─── */}
+        {goalPlan.length > 0 && (
+          <>
+            <View style={[styles.coloredSectionHeader, { backgroundColor: "#2767B4", marginTop: 24 }]}>
+              <Text style={[styles.coloredSectionTitle, { color: "#FFFFFF" }]}>Goal</Text>
+            </View>
+            <View style={styles.actionsList}>
+              {goalPlan.map((goal, idx) => (
+                <TouchableOpacity
+                  key={goal.id}
+                  style={[
+                    styles.actionCard, 
+                    { backgroundColor: goal.bgColor },
+                    idx === 0 && { borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }
+                  ]}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.actionTitle}>{goal.title}</Text>
+                  <Text style={styles.actionDesc}>{goal.desc}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* ─── Risk Plan ─── */}
+        {riskPlan.length > 0 && (
+          <>
+            <View style={[styles.coloredSectionHeader, { backgroundColor: "#002D5B", marginTop: 24 }]}>
+              <Text style={styles.coloredSectionTitle}>Risk Detected</Text>
+            </View>
+            <View style={styles.actionsList}>
+              {riskPlan.map((risk, idx) => (
+                <TouchableOpacity
+                  key={risk.id}
+                  style={[
+                    styles.actionCard, 
+                    { backgroundColor: risk.bgColor },
+                    idx === 0 && { borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }
+                  ]}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.actionTitle}>{risk.title}</Text>
+                  <Text style={styles.actionDesc}>{risk.desc}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -284,7 +367,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginBottom: 24,
   },
   iconBtn: {
@@ -510,12 +593,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionCard: {
-    borderRadius: 12,
     padding: 16,
+    borderRadius: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 3,
   },
   actionTitle: {
@@ -541,6 +624,20 @@ const styles = StyleSheet.create({
     color: "#EF4444",
     textAlign: "center",
     marginBottom: 16,
+  },
+  coloredSectionHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    marginBottom: 0,
+  },
+  coloredSectionTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: "#FFFFFF",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   retryBtn: {
     backgroundColor: "#00A896",

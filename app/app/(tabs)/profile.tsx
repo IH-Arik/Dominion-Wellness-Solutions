@@ -18,6 +18,8 @@ import SettingsSupportList from '../../src/components/SettingsSupportList';
 import ConfirmationModal from '../../src/components/ConfirmationModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ProfileSkeleton } from '../../src/components/ProfileSkeleton';
+
 export default function ProfileScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -51,12 +53,7 @@ export default function ProfileScreen() {
   };
 
   if (isLoading && !summaryData) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading Profile...</Text>
-      </SafeAreaView>
-    );
+    return <ProfileSkeleton />;
   }
 
   const { profile, organization, performance_profile } = summaryData?.data || {

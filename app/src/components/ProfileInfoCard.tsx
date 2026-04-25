@@ -1,8 +1,16 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { User as UserIcon, Pencil, Camera } from "lucide-react-native";
 import { useRouter } from "expo-router";
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from "expo-image-picker";
 import { FontFamily, FontSize } from "../constants/typography";
 import Colors from "../constants/colors";
 import { useUploadProfileImageMutation } from "../redux/rtk/authApi";
@@ -18,12 +26,13 @@ interface ProfileInfoCardProps {
 
 const ProfileInfoCard = ({ profile }: ProfileInfoCardProps) => {
   const router = useRouter();
-  const [uploadImage, { isLoading: isUploading }] = useUploadProfileImageMutation();
+  const [uploadImage, { isLoading: isUploading }] =
+    useUploadProfileImageMutation();
 
   const pickImage = async () => {
     // No permissions request is necessary for launching the image library
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -31,19 +40,21 @@ const ProfileInfoCard = ({ profile }: ProfileInfoCardProps) => {
 
     if (!result.canceled && result.assets && result.assets[0]) {
       const selectedImage = result.assets[0];
-      
+
       const formData = new FormData();
       // @ts-ignore
-      formData.append('file', {
+      formData.append("file", {
         uri: selectedImage.uri,
-        name: selectedImage.fileName || 'profile.jpg',
-        type: selectedImage.mimeType || 'image/jpeg',
+        name: selectedImage.fileName || "profile.jpg",
+        type: selectedImage.mimeType || "image/jpeg",
       });
 
       try {
         await uploadImage(formData).unwrap();
         Alert.alert("Success", "Profile picture updated successfully!");
       } catch (err: any) {
+        console.log("upload:", err);
+
         Alert.alert("Error", err.data?.message || "Failed to upload image");
       }
     }
@@ -52,13 +63,17 @@ const ProfileInfoCard = ({ profile }: ProfileInfoCardProps) => {
   return (
     <View style={styles.card}>
       <View style={styles.avatarContainer}>
-        <TouchableOpacity style={styles.avatarCircle} onPress={pickImage} disabled={isUploading}>
+        <TouchableOpacity
+          style={styles.avatarCircle}
+          onPress={pickImage}
+          disabled={isUploading}
+        >
           {isUploading ? (
             <ActivityIndicator color={Colors.white} />
           ) : profile.profile_image ? (
-            <Image 
-              source={{ uri: profile.profile_image }} 
-              style={styles.avatarImage} 
+            <Image
+              source={{ uri: profile.profile_image }}
+              style={styles.avatarImage}
             />
           ) : (
             <>
@@ -76,8 +91,8 @@ const ProfileInfoCard = ({ profile }: ProfileInfoCardProps) => {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.name}>{profile.name || 'Anonymous'}</Text>
-      <Text style={styles.email}>{profile.email || 'No email provided'}</Text>
+      <Text style={styles.name}>{profile.name || "Anonymous"}</Text>
+      <Text style={styles.email}>{profile.email || "No email provided"}</Text>
 
       {profile.age && (
         <View style={styles.ageBadge}>
@@ -122,12 +137,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 4,
     borderColor: "#F1F5F9",
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   avatarLabel: {
     fontSize: 6,

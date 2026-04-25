@@ -74,6 +74,8 @@ export interface SubmitWeeklyCheckInResponse {
 export interface InsightData {
   insight: string;
   improvement_plan: string;
+  goal_plan?: string;
+  risk_plan?: string;
   overall_score: number;
   condition: string;
   dimension_scores: {

@@ -11,6 +11,7 @@ import {
   BurnoutAlert,
   CheckInBanner
 } from '../../src/components';
+import { HomeSkeleton } from '../../src/components/HomeSkeleton';
 import { FontFamily } from '../../src/constants/typography';
 import Colors from '../../src/constants/colors';
 import { useGetDashboardQuery } from '../../src/redux/rtk/aiApi';
@@ -51,11 +52,7 @@ export default function HomeScreen() {
   };
 
   if (isLoading && !dashboardData) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#1CC8B0" />
-      </View>
-    );
+    return <HomeSkeleton />;
   }
 
   const data = dashboardData || dashboard?.data;

@@ -7,8 +7,12 @@ import {
   ScrollView,
   Platform,
   TextInput,
-  KeyboardAvoidingView,
   ActivityIndicator,
+  Animated,
+  Keyboard,
+  Easing,
+  KeyboardEvent,
+  KeyboardAvoidingView,
 } from "react-native";
 import { X, Mic, ArrowUp } from "lucide-react-native";
 import { FontFamily } from "../../src/constants/typography";
@@ -23,21 +27,68 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AnimatedTypingDots from "../../src/components/AnimatedTypingDots";
 import TypewriterText from "../../src/components/TypewriterText";
 
+import { ChatHistorySkeleton } from "../../src/components/ChatHistorySkeleton";
+
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const scrollViewRef = useRef<ScrollView>(null);
   const [inputText, setInputText] = useState("");
   const [lastAnimatedIndex, setLastAnimatedIndex] = useState(-1);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+
+  // Animated value for keyboard height
+  const keyboardHeight = useRef(new Animated.Value(0)).current;
 
   const { data: greetingData } = useGetChatGreetingQuery();
-  const { data: historyData, isLoading: historyLoading } = useGetChatHistoryQuery();
+  const { data: historyData, isLoading: historyLoading, isFetching: isHistoryFetching } = useGetChatHistoryQuery();
   const { data: suggestionsData } = useGetChatSuggestionsQuery();
   const [sendMessage, { isLoading: isSending }] = useSendChatMessageMutation();
 
   const messages = historyData?.data?.messages || [];
   const suggestions = suggestionsData?.data?.suggestions || [];
   const greeting = greetingData?.data;
+
+  // Keyboard Animation Setup
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const onKeyboardShow = (e: KeyboardEvent) => {
+      const targetValue = Platform.OS === "ios" 
+        ? e.endCoordinates.height - insets.bottom 
+        : 0;
+
+      Animated.timing(keyboardHeight, {
+        toValue: targetValue,
+        duration: e.duration || 250,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false, // Padding/height cannot use native driver
+      }).start();
+      
+      // Also scroll to bottom when keyboard opens
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+    };
+
+    const onKeyboardHide = (e: KeyboardEvent) => {
+      Animated.timing(keyboardHeight, {
+        toValue: 0,
+        duration: e.duration || 250,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, onKeyboardShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, onKeyboardHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [insets.bottom]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -52,13 +103,22 @@ export default function ChatScreen() {
     const textToSend = textOverride || inputText;
     if (!textToSend.trim() || isSending) return;
 
+    setPendingMessage(textToSend);
     setInputText("");
     try {
       await sendMessage({ message: textToSend }).unwrap();
     } catch (error) {
       console.error("Failed to send message:", error);
+      setPendingMessage(null);
     }
   };
+
+  // Clear pending message only after history has finished refreshing
+  useEffect(() => {
+    if (!isSending && !isHistoryFetching && pendingMessage) {
+      setPendingMessage(null);
+    }
+  }, [isSending, isHistoryFetching, pendingMessage]);
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -66,9 +126,9 @@ export default function ChatScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
+    <KeyboardAvoidingView 
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "padding"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       {/* ─── Floating Header Card ─── */}
@@ -94,7 +154,11 @@ export default function ChatScreen() {
         ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
+        {/* Loading History Skeleton */}
+        {historyLoading && <ChatHistorySkeleton />}
+
         {/* Initial Greeting if no history */}
         {messages.length === 0 && !historyLoading && greeting?.greeting_message && (
           <View style={styles.msgContainerLeft}>
@@ -138,6 +202,18 @@ export default function ChatScreen() {
           );
         })}
 
+        {/* Pending User Message */}
+        {(isSending || isHistoryFetching) && pendingMessage && (
+          <View style={styles.msgContainerRight}>
+            <View style={[styles.msgBubbleRight, styles.cornerSharpBottomRight]}>
+              <Text style={styles.msgTextRight}>{pendingMessage}</Text>
+            </View>
+            <Text style={styles.msgTimeRight}>
+              {isSending ? "Sending..." : "Syncing..."}
+            </Text>
+          </View>
+        )}
+
         {/* Typing indicator */}
         {isSending && (
           <View style={styles.msgContainerLeft}>
@@ -167,7 +243,12 @@ export default function ChatScreen() {
       </ScrollView>
 
       {/* Input Area */}
-      <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <View style={[
+        styles.inputContainer, 
+        { 
+          paddingBottom: Math.max(insets.bottom, 16) 
+        }
+      ]}>
         <View style={styles.inputWrapper}>
           <TouchableOpacity 
             style={styles.micBtn}

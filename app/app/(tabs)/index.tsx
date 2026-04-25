@@ -8,11 +8,13 @@ import {
   ActionPlanSection, 
   BehaviorStreakGrid,
   DashboardIndicators,
-  BurnoutAlert
+  BurnoutAlert,
+  CheckInBanner
 } from '../../src/components';
 import { FontFamily } from '../../src/constants/typography';
 import Colors from '../../src/constants/colors';
 import { useGetDashboardQuery } from '../../src/redux/rtk/aiApi';
+import { useGetCheckInStatusQuery } from '../../src/redux/rtk/questionsApi';
 import { useDispatch } from 'react-redux';
 import { setDashboardData } from '../../src/redux/slices/aiSlice';
 import { useAppSelector } from '../../src/redux/reduxHooks';
@@ -20,12 +22,12 @@ import { useAppSelector } from '../../src/redux/reduxHooks';
 export default function HomeScreen() {
   const dispatch = useDispatch();
   const { data: dashboard, isLoading, error, refetch, isFetching } = useGetDashboardQuery();
+  const { data: checkInStatus, isLoading: isStatusLoading } = useGetCheckInStatusQuery();
   const { dashboardData } = useAppSelector((state) => state.ai);
 
   useEffect(() => {
     if (dashboard) {
       if (dashboard.success && dashboard.data) {
-        console.log("dashboardData", dashboard.data);
         dispatch(setDashboardData(dashboard.data));
       }
     }
@@ -94,6 +96,9 @@ export default function HomeScreen() {
         <View style={styles.mainContent}>
           {/* Wellness Alerts */}
           {/* <BurnoutAlert alert={data?.burnout_alert} /> */}
+
+          {/* Check-In Banner */}
+          <CheckInBanner type={(checkInStatus?.data?.next_checkin_type as any) || 'none'} />
 
           {/* Key Indicators */}
           <DashboardIndicators indicators={data?.dashboard_indicators} />

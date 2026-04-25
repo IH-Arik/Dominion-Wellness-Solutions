@@ -4,7 +4,15 @@ import { LineChart } from "lucide-react-native";
 import { FontFamily, FontSize } from "../constants/typography";
 import Colors from "../constants/colors";
 
-const PerformanceProfileCard = () => {
+interface PerformanceProfileCardProps {
+  performance_profile: {
+    current_ops_score: number;
+    strongest_driver: string | null;
+    focus_driver: string | null;
+  };
+}
+
+const PerformanceProfileCard = ({ performance_profile }: PerformanceProfileCardProps) => {
   return (
     <View style={styles.container}>
       <Text style={styles.sectionLabel}>PERFORMANCE PROFILE</Text>
@@ -13,7 +21,7 @@ const PerformanceProfileCard = () => {
           <View>
             <Text style={styles.scoreLabel}>CURRENT OPS SCORE</Text>
             <View style={styles.scoreContainer}>
-              <Text style={styles.scoreMain}>88</Text>
+              <Text style={styles.scoreMain}>{Math.round(performance_profile.current_ops_score || 0)}</Text>
               <Text style={styles.scoreTotal}> / 100</Text>
             </View>
           </View>
@@ -27,11 +35,11 @@ const PerformanceProfileCard = () => {
         <View style={styles.bottomRow}>
           <View style={styles.driverItem}>
             <Text style={styles.driverLabel}>STRONGEST DRIVER</Text>
-            <Text style={styles.driverValueDetail}>Physical Capacity</Text>
+            <Text style={styles.driverValueDetail}>{performance_profile.strongest_driver || 'N/A'}</Text>
           </View>
           <View style={styles.driverItem}>
             <Text style={styles.driverLabel}>FOCUS DRIVER</Text>
-            <Text style={styles.driverValueFocus}>Recovery Capacity</Text>
+            <Text style={styles.driverValueFocus}>{performance_profile.focus_driver || 'N/A'}</Text>
           </View>
         </View>
       </View>
@@ -106,6 +114,7 @@ const styles = StyleSheet.create({
   },
   driverItem: {
     gap: 4,
+    flex: 1,
   },
   driverLabel: {
     fontFamily: FontFamily.bold,

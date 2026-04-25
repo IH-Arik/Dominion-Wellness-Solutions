@@ -28,30 +28,34 @@ const TrendRow = ({ title, trend, colors }: TrendRowProps) => {
   );
 };
 
-const BehaviorTrendGrid = () => {
+interface BehaviorTrendGridProps {
+  data: Array<{
+    key: string;
+    label: string;
+    status: string;
+    bars: number[];
+    color_scale: string[];
+  }>;
+}
+
+const BehaviorTrendGrid = ({ data }: BehaviorTrendGridProps) => {
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Behavior Trends</Text>
       <View style={styles.card}>
-        <TrendRow 
-          title="SLEEP QUALITY" 
-          trend="Sleep consistency trend" 
-          colors={['#B2EBF2', '#80DEEA', '#4DD0E1', '#26C6DA', '#00BCD4', '#0097A7', '#00838F']} 
-        />
-        <TrendRow 
-          title="STRESS LEVELS" 
-          trend="Low-Medium" 
-          colors={['#FFCDD2', '#EF9A9A', '#FFF59D', '#A5D6A7', '#81C784', '#66BB6A', '#E8F5E9']} 
-        />
-        <TrendRow 
-          title="DAILY ACTIVITY" 
-          trend="Low-Medium" 
-          colors={['#CBD5E1', '#94A3B8', '#CBD5E1', '#64748B', '#334155', '#1E293B', '#0F172A']} 
-        />
+        {data.map((item) => (
+          <TrendRow 
+            key={item.key}
+            title={item.label.toUpperCase()} 
+            trend={item.status} 
+            colors={item.color_scale} 
+          />
+        ))}
       </View>
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

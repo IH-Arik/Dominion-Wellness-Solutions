@@ -4,36 +4,52 @@ import { TrendingUp } from 'lucide-react-native';
 import { FontFamily, FontSize } from '../constants/typography';
 import Colors from '../constants/colors';
 
-const OpsSummaryCard = () => {
+interface OpsSummaryCardProps {
+  data: {
+    overall_score: number;
+    status: string;
+    percentage_change: number;
+    progress_value: number;
+    comparison_label: string;
+  };
+}
+
+const OpsSummaryCard = ({ data }: OpsSummaryCardProps) => {
+  const trendColor = data.percentage_change >= 0 ? "#10B981" : "#EF4444";
+  const isPositive = data.percentage_change >= 0;
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.title}>OPS SUMMARY</Text>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>Optimal</Text>
+          <Text style={styles.badgeText}>{data.status}</Text>
         </View>
       </View>
       
       <View style={styles.scoreContainer}>
         <View>
           <Text style={styles.scoreText}>
-            <Text style={styles.boldScore}>88</Text>/100
+            <Text style={styles.boldScore}>{Math.round(data.overall_score)}</Text>/100
           </Text>
         </View>
         <View style={styles.trendContainer}>
-          <TrendingUp size={14} color="#10B981" />
-          <Text style={styles.trendText}>+5% vs last month</Text>
+          <TrendingUp size={14} color={trendColor} style={{ transform: [{ rotate: isPositive ? '0deg' : '180deg' }] }} />
+          <Text style={[styles.trendText, { color: trendColor }]}>
+            {isPositive ? '+' : ''}{data.percentage_change}% {data.comparison_label}
+          </Text>
         </View>
       </View>
       
       <View style={styles.progressBarContainer}>
         <View style={styles.progressBarBackground}>
-          <View style={[styles.progressBarFill, { width: '88%' }]} />
+          <View style={[styles.progressBarFill, { width: `${data.progress_value}%` }]} />
         </View>
       </View>
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   card: {

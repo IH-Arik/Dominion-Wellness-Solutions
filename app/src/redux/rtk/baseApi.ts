@@ -1,9 +1,14 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { Platform } from 'react-native';
+
+const BASE_URL = __DEV__ 
+  ? `http://10.10.20.44:8000/api/v1`
+  : 'https://api.yourdomain.com/api/v1';
 
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({ 
-    baseUrl: 'https://dominion-wellness-solutions.vercel.app/api/v1',
+    baseUrl: BASE_URL,
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as any).auth.accessToken;
       console.log("API Header - Token exists:", !!token);
@@ -13,6 +18,7 @@ export const api = createApi({
       return headers;
     },
   }),
+  tagTypes: ['CheckInStatus', 'Dashboard', 'Profile', 'User', 'PerformanceReport', 'ChatHistory'],
   endpoints: (builder) => ({
     getUsers: builder.query({
       query: () => '/users',

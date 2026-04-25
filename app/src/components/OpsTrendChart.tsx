@@ -3,16 +3,17 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontFamily, FontSize } from '../constants/typography';
 import Colors from '../constants/colors';
 
-const OpsTrendChart = () => {
+interface OpsTrendChartProps {
+  data: Array<{
+    label: string;
+    value: number;
+    is_current: boolean;
+  }>;
+}
+
+const OpsTrendChart = ({ data }: OpsTrendChartProps) => {
   const periods = ['7D', '30D', '90D'];
   const activePeriod = '30D';
-
-  const data = [
-    { label: 'WEEK 1', bars: [{ height: 40, color: '#F1F5F9' }, { height: 50, color: '#F1F5F9' }] },
-    { label: 'WEEK 2', bars: [{ height: 60, color: '#1CC8B0' }, { height: 75, color: '#1CC8B0' }] },
-    { label: 'WEEK 3', bars: [{ height: 70, color: '#1CC8B0' }, { height: 85, color: '#1CC8B0' }] },
-    { label: 'CURRENT', bars: [{ height: 80, color: '#1CC8B0' }, { height: 95, color: '#0D2B6E' }] },
-  ];
 
   return (
     <View style={styles.card}>
@@ -42,15 +43,17 @@ const OpsTrendChart = () => {
         {data.map((item, index) => (
           <View key={index} style={styles.column}>
             <View style={styles.barsRow}>
-              {item.bars.map((bar, barIndex) => (
-                <View 
-                  key={barIndex} 
-                  style={[
-                    styles.bar, 
-                    { height: bar.height, backgroundColor: bar.color }
-                  ]} 
-                />
-              ))}
+              <View 
+                style={[
+                  styles.bar, 
+                  { 
+                    height: Math.max(item.value, 5), // Min height for visibility
+                    backgroundColor: item.is_current ? '#0D2B6E' : '#1CC8B0',
+                    width: 12,
+                    borderRadius: 6
+                  }
+                ]} 
+              />
             </View>
             <Text style={styles.label}>{item.label}</Text>
           </View>
@@ -59,6 +62,7 @@ const OpsTrendChart = () => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   card: {

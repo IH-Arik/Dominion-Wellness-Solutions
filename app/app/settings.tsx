@@ -1,18 +1,79 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { FontFamily, FontSize } from '../src/constants/typography';
 import Colors from '../src/constants/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDeleteAccountMutation, useGetAccountSummaryQuery } from '../src/redux/rtk/authApi';
+import { useDispatch } from 'react-redux';
+import { logout } from '../src/redux/slices/authSlice';
+import { Alert } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const SettingsScreen = () => {
   const router = useRouter();
+  const dispatch = useDispatch();
+  const { data: summaryData } = useGetAccountSummaryQuery();
+  const [deleteAccount, { isLoading: isDeleting }] = useDeleteAccountMutation();
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Logout", 
+          style: "destructive",
+          onPress: () => {
+            dispatch(logout());
+            router.replace('/(auth)/login');
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAccount().unwrap();
+              Toast.show({
+                type: 'success',
+                text1: 'Account Deleted',
+                text2: 'Your account has been successfully deleted.',
+              });
+              dispatch(logout());
+              router.replace('/(auth)/login');
+            } catch (error: any) {
+              Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: error?.data?.message || 'Failed to delete account.',
+              });
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const settingsItems = [
     { label: 'Change Password', onPress: () => router.push('/change-password') },
     { label: 'Terms of condition', onPress: () => router.push('/terms') },
     { label: 'Privacy Policy', onPress: () => router.push('/privacy') },
     { label: 'About Us', onPress: () => router.push('/about') },
+    { label: 'Logout', onPress: handleLogout, color: '#E11D48' },
+    { label: 'Delete Account', onPress: handleDeleteAccount, color: '#E11D48' },
   ];
 
   return (
@@ -31,12 +92,18 @@ const SettingsScreen = () => {
           {settingsItems.map((item, index) => (
             <React.Fragment key={index}>
               <TouchableOpacity style={styles.item} onPress={item.onPress}>
-                <Text style={styles.itemLabel}>{item.label}</Text>
+                <Text style={[styles.itemLabel, item.color ? { color: item.color } : {}]}>
+                  {item.label}
+                </Text>
                 <ChevronRight size={20} color="#CBD5E1" />
               </TouchableOpacity>
               {index < settingsItems.length - 1 && <View style={styles.separator} />}
             </React.Fragment>
           ))}
+        </View>
+
+        <View style={styles.versionContainer}>
+          <Text style={styles.versionText}>Version {summaryData?.data?.app_version || '1.0.0'}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -99,6 +166,16 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#F1F5F9',
     marginHorizontal: 16,
+  },
+  versionContainer: {
+    alignItems: 'center',
+    marginTop: 32,
+    marginBottom: 40,
+  },
+  versionText: {
+    fontFamily: FontFamily.medium,
+    fontSize: FontSize.xs,
+    color: '#94A3B8',
   },
 });
 

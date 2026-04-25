@@ -4,21 +4,52 @@ import { ChevronDown } from 'lucide-react-native';
 import { FontFamily, FontSize } from '../constants/typography';
 import Colors from '../constants/colors';
 
-const FilterSelector = () => {
+interface FilterSelectorProps {
+  selectedWeek: string;
+  selectedMonth: string;
+  selectedYear: number;
+  onFilterChange: (type: "week" | "month" | "year", value: string | number) => void;
+}
+
+const FilterSelector = ({ 
+  selectedWeek, 
+  selectedMonth, 
+  selectedYear,
+  onFilterChange 
+}: FilterSelectorProps) => {
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const periodLabel = `${monthNames[Number(selectedMonth) - 1]} ${selectedYear}`;
+  const weekLabel = selectedWeek === "all" ? "All Weeks" : `Week ${selectedWeek}`;
+
+  const toggleWeek = () => {
+    const next = selectedWeek === "all" ? "1" : (Number(selectedWeek) < 4 ? (Number(selectedWeek) + 1).toString() : "all");
+    onFilterChange("week", next);
+  };
+
+  const toggleMonth = () => {
+    const next = Number(selectedMonth) < 12 ? (Number(selectedMonth) + 1).toString() : "1";
+    onFilterChange("month", next);
+  };
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.darkButton}>
-        <Text style={styles.darkButtonText}>Last 30 Days</Text>
+      <TouchableOpacity style={styles.darkButton} onPress={toggleMonth}>
+        <Text style={styles.darkButtonText}>{periodLabel}</Text>
         <ChevronDown size={16} color={Colors.white} />
       </TouchableOpacity>
       
-      <TouchableOpacity style={styles.lightButton}>
-        <Text style={styles.lightButtonText}>All Drivers</Text>
+      <TouchableOpacity style={styles.lightButton} onPress={toggleWeek}>
+        <Text style={styles.lightButtonText}>{weekLabel}</Text>
         <ChevronDown size={16} color={Colors.gray} />
       </TouchableOpacity>
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

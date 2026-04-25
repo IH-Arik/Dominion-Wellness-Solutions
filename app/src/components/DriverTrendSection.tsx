@@ -28,76 +28,72 @@ const DriverTrendItem = ({ icon: Icon, title, trend, bars, color }: DriverTrendI
       </View>
       
       <View style={styles.miniChart}>
-        {bars.map((height: number, index: number) => (
-          <View 
-            key={index} 
-            style={[
-              styles.miniBar, 
-              { 
-                height: height, 
-                backgroundColor: index === bars.length - 1 ? color : `${color}80` 
-              }
-            ]} 
-          />
-        ))}
+        {bars.map((val: number, index: number) => {
+          // Normalize height to container (max 20px)
+          const barHeight = Math.max(2, (val / 100) * 20);
+          return (
+            <View 
+              key={index} 
+              style={[
+                styles.miniBar, 
+                { 
+                  height: barHeight, 
+                  backgroundColor: index === bars.length - 1 ? color : `${color}80` 
+                }
+              ]} 
+            />
+          );
+        })}
       </View>
     </View>
   );
 };
 
-const DriverTrendSection = () => {
-  const trends = [
-    {
-      icon: Dumbbell,
-      title: 'Physical Capacity',
-      trend: '+12%',
-      bars: [8, 12, 10, 16],
-      color: '#3B82F6',
-    },
-    {
-      icon: Brain,
-      title: 'Mental Resilience',
-      trend: '-3%',
-      bars: [14, 16, 12, 18],
-      color: '#8B5CF6',
-    },
-    {
-      icon: Battery,
-      title: 'Recovery Capacity',
-      trend: 'Stable',
-      bars: [12, 12, 12, 12],
-      color: '#10B981',
-    },
-    {
-      icon: Target,
-      title: 'Purpose Alignment',
-      trend: '+2%',
-      bars: [10, 8, 14, 12],
-      color: '#F97316',
-    },
-    {
-      icon: Users,
-      title: 'Morale & Cohesion',
-      trend: '+8%',
-      bars: [6, 10, 8, 14],
-      color: '#06B6D4',
-    },
-  ];
+interface DriverTrendSectionProps {
+  data: Array<{
+    key: string;
+    label: string;
+    current_score: number;
+    delta: number;
+    delta_label: string;
+    color: string;
+    sparkline: number[];
+  }>;
+}
 
+const getDriverIcon = (key: string) => {
+  switch (key) {
+    case 'PC': return Dumbbell;
+    case 'MR': return Brain;
+    case 'RC': return Battery;
+    case 'PA': return Target;
+    case 'MC': return Users;
+    default: return Target;
+  }
+};
+
+const DriverTrendSection = ({ data }: DriverTrendSectionProps) => {
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>DRIVER TRENDS</Text>
       <View style={styles.card}>
-        {trends.map((trend, index) => (
-          <React.Fragment key={index}>
-            <DriverTrendItem {...trend} />
-            {index < trends.length - 1 && <View style={styles.separator} />}
+        {data.map((trend, index) => (
+          <React.Fragment key={trend.key}>
+            <DriverTrendItem 
+              icon={getDriverIcon(trend.key)}
+              title={trend.label}
+              trend={trend.delta_label}
+              bars={trend.sparkline}
+              color={trend.color}
+            />
+            {index < data.length - 1 && <View style={styles.separator} />}
           </React.Fragment>
         ))}
       </View>
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

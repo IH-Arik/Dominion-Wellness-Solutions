@@ -35,6 +35,7 @@ function TabIcon({ name, focused }: TabIconProps) {
       <View style={styles.iconContent}>
         <Icon size={24} color={color} strokeWidth={focused ? 2.3 : 2} />
         <Text
+          adjustsFontSizeToFit={true}
           style={[
             styles.label,
             {
@@ -91,10 +92,12 @@ const styles = StyleSheet.create({
   iconContent: {
     alignItems: "center",
     justifyContent: "center",
+    width: 72,
     marginTop: Platform.OS === "ios" ? -15 : 0, 
   },
   label: {
     fontSize: 10,
     marginTop: 4,
+    textAlign: "center",
   },
 });

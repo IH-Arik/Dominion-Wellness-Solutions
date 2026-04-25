@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,62 @@ import {
   Platform,
   TextInput,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from "react-native";
 import { X, Mic, ArrowUp } from "lucide-react-native";
 import { FontFamily } from "../../src/constants/typography";
+import { useNavigation } from "@react-navigation/native";
+import { 
+  useGetChatGreetingQuery, 
+  useGetChatHistoryQuery, 
+  useGetChatSuggestionsQuery, 
+  useSendChatMessageMutation 
+} from "../../src/redux/rtk/aiApi";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AnimatedTypingDots from "../../src/components/AnimatedTypingDots";
+import TypewriterText from "../../src/components/TypewriterText";
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [inputText, setInputText] = useState("");
+  const [lastAnimatedIndex, setLastAnimatedIndex] = useState(-1);
+
+  const { data: greetingData } = useGetChatGreetingQuery();
+  const { data: historyData, isLoading: historyLoading } = useGetChatHistoryQuery();
+  const { data: suggestionsData } = useGetChatSuggestionsQuery();
+  const [sendMessage, { isLoading: isSending }] = useSendChatMessageMutation();
+
+  const messages = historyData?.data?.messages || [];
+  const suggestions = suggestionsData?.data?.suggestions || [];
+  const greeting = greetingData?.data;
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length, isSending]);
+
+  const handleSend = async (textOverride?: string) => {
+    const textToSend = textOverride || inputText;
+    if (!textToSend.trim() || isSending) return;
+
+    setInputText("");
+    try {
+      await sendMessage({ message: textToSend }).unwrap();
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
     <KeyboardAvoidingView
@@ -23,88 +72,107 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       {/* ─── Floating Header Card ─── */}
-      <View style={[styles.headerCard, { marginTop: Math.max(insets.top, 16) }]}>
+      <View style={[styles.headerCard, { marginTop: insets.top + 16 }]}>
         <View style={styles.headerLeft}>
           <View style={styles.headerIconBg}>
             <Text style={styles.headerIconText}>✜</Text> 
           </View>
           <View style={styles.headerTextWrap}>
-            <Text style={styles.headerTitle}>DWS AI Assistant</Text>
+            <Text style={styles.headerTitle}>{greeting?.title || "DWS AI Assistant"}</Text>
             <View style={styles.onlineWrap}>
               <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>Online</Text>
+              <Text style={styles.onlineText}>{greeting?.status || "Online"}</Text>
             </View>
           </View>
         </View>
-        <TouchableOpacity style={styles.closeBtn}>
+        <TouchableOpacity style={styles.closeBtn} onPress={() => navigation.goBack()}>
           <X size={18} color="#FFFFFF" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Message 1: AI */}
-        <View style={styles.msgContainerLeft}>
-          <View style={[styles.msgBubbleLeft, styles.cornerSharpTopLeft]}>
-            <Text style={styles.msgTextLeft}>
-              Hello! I'm your DWS AI Assistant. How can I help improve your performance today?
-            </Text>
+        {/* Initial Greeting if no history */}
+        {messages.length === 0 && !historyLoading && greeting?.greeting_message && (
+          <View style={styles.msgContainerLeft}>
+            <View style={[styles.msgBubbleLeft, styles.cornerSharpTopLeft]}>
+              <TypewriterText 
+                text={greeting.greeting_message}
+                style={styles.msgTextLeft}
+                enabled={true}
+              />
+            </View>
           </View>
-          <Text style={styles.msgTimeLeft}>10:00 AM</Text>
-        </View>
+        )}
 
-        {/* Message 2: User */}
-        <View style={styles.msgContainerRight}>
-          <View style={[styles.msgBubbleRight, styles.cornerSharpBottomRight]}>
-            <Text style={styles.msgTextRight}>
-              Why is my recovery capacity lower this week?
-            </Text>
-          </View>
-          <Text style={styles.msgTimeRight}>09:42 AM</Text>
-        </View>
+        {/* Message History */}
+        {messages.map((msg, index) => {
+          const isAI = msg.role === "assistant";
+          const isLast = index === messages.length - 1;
+          const shouldAnimate = isAI && isLast && index > lastAnimatedIndex;
 
-        {/* Message 3: AI */}
-        <View style={styles.msgContainerLeft}>
-          <View style={[styles.msgBubbleLeft, styles.cornerSharpTopLeft]}>
-            <Text style={styles.msgTextLeft}>
-              Based on your recent check-ins, your sleep consistency has decreased slightly over the past few days. Lower sleep quality can reduce recovery capacity and overall performance. Improving sleep consistency and taking short recovery breaks may help stabilize your recovery score.
-            </Text>
-          </View>
-          <Text style={styles.msgTimeLeft}>10:03 AM</Text>
-        </View>
+          return (
+            <View key={index} style={isAI ? styles.msgContainerLeft : styles.msgContainerRight}>
+              <View style={[
+                isAI ? styles.msgBubbleLeft : styles.msgBubbleRight,
+                isAI ? styles.cornerSharpTopLeft : styles.cornerSharpBottomRight
+              ]}>
+                {isAI ? (
+                  <TypewriterText 
+                    text={msg.content}
+                    style={styles.msgTextLeft}
+                    enabled={shouldAnimate}
+                    onComplete={() => setLastAnimatedIndex(index)}
+                  />
+                ) : (
+                  <Text style={styles.msgTextRight}>{msg.content}</Text>
+                )}
+              </View>
+              <Text style={isAI ? styles.msgTimeLeft : styles.msgTimeRight}>
+                {formatTime(msg.created_at)}
+              </Text>
+            </View>
+          );
+        })}
 
         {/* Typing indicator */}
-        <View style={styles.msgContainerLeft}>
-          <View style={styles.typingBubble}>
-            <View style={styles.typingDot} />
-            <View style={styles.typingDot} />
-            <View style={styles.typingDot} />
+        {isSending && (
+          <View style={styles.msgContainerLeft}>
+            <View style={styles.typingBubble}>
+              <AnimatedTypingDots />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Spacer to push suggestions to bottom if screen is tall */}
         <View style={{ flex: 1, minHeight: 40 }} />
 
         {/* Suggested Queries */}
-        <View style={styles.suggestionsContainer}>
-          <TouchableOpacity style={styles.suggestionPill}>
-            <Text style={styles.suggestionText}>Why is my recovery score low?</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.suggestionPill}>
-            <Text style={styles.suggestionText}>How can I improve sleep?</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.suggestionPill}>
-            <Text style={styles.suggestionText}>What affects my OPS score?</Text>
-          </TouchableOpacity>
-        </View>
+        {!isSending && suggestions.length > 0 && (
+          <View style={styles.suggestionsContainer}>
+            {suggestions.map((sug, idx) => (
+              <TouchableOpacity 
+                key={idx} 
+                style={styles.suggestionPill}
+                onPress={() => handleSend(sug.text)}
+              >
+                <Text style={styles.suggestionText}>{sug.text}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* Input Area */}
       <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <View style={styles.inputWrapper}>
-          <TouchableOpacity style={styles.micBtn}>
+          <TouchableOpacity 
+            style={styles.micBtn}
+            onPress={() => alert("Voice input feature coming soon!")}
+          >
             <Mic size={22} color="#6B7280" />
           </TouchableOpacity>
           
@@ -113,10 +181,22 @@ export default function ChatScreen() {
             placeholder="Type your message..."
             placeholderTextColor="#9CA3AF"
             underlineColorAndroid="transparent"
+            value={inputText}
+            onChangeText={setInputText}
+            onSubmitEditing={() => handleSend()}
+            returnKeyType="send"
           />
           
-          <TouchableOpacity style={styles.sendBtn}>
-            <ArrowUp size={20} color="#FFFFFF" strokeWidth={3} />
+          <TouchableOpacity 
+            style={[styles.sendBtn, !inputText.trim() && { opacity: 0.5 }]} 
+            onPress={() => handleSend()}
+            disabled={!inputText.trim() || isSending}
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <ArrowUp size={20} color="#FFFFFF" strokeWidth={3} />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -199,7 +279,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 54,
     paddingBottom: 24,
     flexGrow: 1,
   },
@@ -265,12 +345,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-  },
-  typingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#9CA3AF",
   },
   suggestionsContainer: {
     alignItems: "flex-start",

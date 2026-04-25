@@ -78,8 +78,6 @@ const HomeHeader = () => {
   const performance = dashboardData?.overall_performance;
   const userSummary = dashboardData?.user_summary;
 
-console.log("HomeHeader Dashboard Data: ", dashboardData);
-
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "GOOD MORNING";
@@ -134,10 +132,21 @@ console.log("HomeHeader Dashboard Data: ", dashboardData);
       </View>
 
       {/* CTA Button */}
-      <TouchableOpacity style={styles.ctaButton} onPress={() => router.push('/daily-checkin')}>
-        <CheckCircle2 size={20} color={Colors.white} style={styles.ctaIcon} />
-        <Text style={styles.ctaText}>Complete Daily Check in</Text>
-      </TouchableOpacity>
+      {dashboardData?.next_checkin_type && dashboardData?.next_checkin_type !== 'none' && (
+        <TouchableOpacity 
+          style={[
+            styles.ctaButton, 
+            dashboardData?.next_checkin_type === 'weekly' && { backgroundColor: '#6366F1' },
+            dashboardData?.next_checkin_type === 'monthly' && { backgroundColor: '#F59E0B' }
+          ]} 
+          onPress={() => router.push({ pathname: '/checkin', params: { type: dashboardData?.next_checkin_type } } as any)}
+        >
+          <CheckCircle2 size={20} color={Colors.white} style={styles.ctaIcon} />
+          <Text style={styles.ctaText}>
+            Complete {dashboardData?.next_checkin_type.charAt(0).toUpperCase()}{dashboardData?.next_checkin_type.slice(1)} Check-in
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

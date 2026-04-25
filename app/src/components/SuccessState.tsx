@@ -4,13 +4,42 @@ import { Check, Flame } from 'lucide-react-native';
 import { FontFamily, FontSize } from '../constants/typography';
 import Colors from '../constants/colors';
 
+import { SubmitDailyCheckInResponse } from '../redux/rtk/questionsApi';
+
 interface SuccessStateProps {
   onReturn: () => void;
+  data: any;
+  type: 'daily' | 'weekly' | 'monthly';
 }
 
-const SuccessState = ({ onReturn }: SuccessStateProps) => {
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  const completedDays = [0, 1, 2, 3]; // M, T, W, T
+const SuccessState = ({ onReturn, data, type }: SuccessStateProps) => {
+  const { 
+    reflection_streak_days = 0, 
+    week_progress = [], 
+    weekly_completed_days = 0,
+    motivation_message = "Small daily actions build strong performance.",
+    // Weekly specific
+    achievement_title,
+    achievement_summary,
+    focus_score,
+    focus_score_label,
+    focus_driver,
+    // Monthly specific
+    monthly_progress_text,
+    message,
+    optimal_performance_score
+  } = data || {};
+
+  const getThemeColor = () => {
+    switch (type) {
+      case 'weekly': return '#6366F1';
+      case 'monthly': return '#F59E0B';
+      default: return '#1CC8B0';
+    }
+  };
+
+  // Calculate progress percentage (out of 7 days)
+  const progressPercentage = (weekly_completed_days / 7) * 100;
 
   return (
     <ScrollView 
@@ -21,53 +50,84 @@ const SuccessState = ({ onReturn }: SuccessStateProps) => {
       <View style={styles.iconContainer}>
         <View style={styles.ripple1}>
           <View style={styles.ripple2}>
-            <View style={styles.checkBg}>
+            <View style={[styles.checkBg, { backgroundColor: getThemeColor(), shadowColor: getThemeColor() }]}>
               <Check size={40} color={Colors.white} strokeWidth={3} />
             </View>
           </View>
         </View>
       </View>
 
-      <Text style={styles.title}>Check-in Complete</Text>
-      <Text style={styles.subtitle}>Small daily actions build strong performance.</Text>
+      <Text style={styles.title}>{type === 'daily' ? 'Check-in Complete' : type === 'weekly' ? 'Weekly Review Done' : 'Monthly Analysis Set'}</Text>
+      <Text style={styles.subtitle}>{motivation_message || message || achievement_summary}</Text>
 
-      <View style={styles.streakCard}>
-        <Text style={styles.streakLabel}>REFLECTION STREAK</Text>
-        <View style={styles.streakRow}>
-          <Text style={styles.streakValue}>4</Text>
-          <Flame size={24} color="#FF5A5A" style={styles.flameIcon} />
-          <Text style={styles.streakDays}>Days</Text>
-        </View>
-
-        <View style={styles.progressBarBg}>
-          <View style={styles.progressBarFill} />
-        </View>
-
-        <Text style={styles.streakQuote}>
-          You're on a roll! Keep it up to reach your weekly goal.
-        </Text>
-      </View>
-
-      <View style={styles.calendarRow}>
-        {days.map((day, index) => {
-          const isCompleted = completedDays.includes(index);
-          const isCurrent = index === 3; // Second 'T' is currently selected in image
-          return (
-            <View key={index} style={[
-              styles.dayCircle, 
-              isCompleted && styles.completedDay,
-              isCurrent && styles.currentDay
-            ]}>
-              <Text style={[
-                styles.dayText, 
-                isCompleted && styles.completedDayText
-              ]}>
-                {day}
-              </Text>
+      {type === 'daily' ? (
+        <>
+          <View style={styles.streakCard}>
+            <Text style={styles.streakLabel}>REFLECTION STREAK</Text>
+            <View style={styles.streakRow}>
+              <Text style={styles.streakValue}>{reflection_streak_days}</Text>
+              <Flame size={24} color="#FF5A5A" style={styles.flameIcon} />
+              <Text style={styles.streakDays}>Days</Text>
             </View>
-          );
-        })}
-      </View>
+
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${progressPercentage}%`, backgroundColor: getThemeColor() }]} />
+            </View>
+
+            <Text style={styles.streakQuote}>
+              {reflection_streak_days >= 4 
+                ? "You're on a roll! Keep it up to reach your weekly goal."
+                : "Good start! Keep checking in to build your momentum."}
+            </Text>
+          </View>
+
+          <View style={styles.calendarRow}>
+            {week_progress.map((day, index) => (
+              <View key={index} style={[
+                styles.dayCircle, 
+                day.completed && { backgroundColor: getThemeColor() },
+                day.is_today && styles.currentDay
+              ]}>
+                <Text style={[
+                  styles.dayText, 
+                  day.completed && styles.completedDayText
+                ]}>
+                  {day.day_label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : type === 'weekly' ? (
+        <View style={styles.streakCard}>
+          <Text style={styles.streakLabel}>{focus_driver?.toUpperCase() || 'FOCUS DRIVER'}</Text>
+          <View style={styles.streakRow}>
+            <Text style={styles.streakValue}>{Math.round(focus_score || 0)}</Text>
+            <Text style={[styles.streakDays, { marginLeft: 8 }]}>%</Text>
+          </View>
+          <Text style={[styles.badge, { backgroundColor: '#EEF2FF', color: '#6366F1' }]}>{focus_score_label}</Text>
+          
+          <View style={{ height: 1, backgroundColor: '#F1F5F9', width: '100%', marginVertical: 20 }} />
+          
+          <Text style={[styles.streakLabel, { marginBottom: 8 }]}>WEEKLY ACHIEVEMENT</Text>
+          <Text style={[styles.title, { fontSize: 20, textAlign: 'center' }]}>{achievement_title}</Text>
+          <Text style={styles.streakQuote}>{achievement_summary}</Text>
+        </View>
+      ) : (
+        <View style={styles.streakCard}>
+          <Text style={styles.streakLabel}>OPTIMAL PERFORMANCE</Text>
+          <View style={styles.streakRow}>
+            <Text style={styles.streakValue}>{Math.round(optimal_performance_score || 0)}</Text>
+            <Text style={[styles.streakDays, { marginLeft: 8 }]}>/100</Text>
+          </View>
+          
+          <View style={{ height: 1, backgroundColor: '#F1F5F9', width: '100%', marginVertical: 20 }} />
+          
+          <Text style={[styles.streakLabel, { marginBottom: 8 }]}>MONTHLY PROGRESS</Text>
+          <Text style={[styles.title, { fontSize: 20, textAlign: 'center' }]}>{monthly_progress_text}</Text>
+          <Text style={styles.streakQuote}>{message}</Text>
+        </View>
+      )}
 
       <TouchableOpacity style={styles.returnButton} onPress={onReturn}>
         <Text style={styles.returnButtonText}>Return to Home</Text>
@@ -239,6 +299,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.white,
   },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontFamily: FontFamily.semiBold,
+    fontSize: 12,
+    overflow: 'hidden',
+  }
 });
 
 export default SuccessState;

@@ -45,3 +45,4 @@ export { default as BurnoutAlert } from './BurnoutAlert';
 // Daily Check-in Components
 export { default as CheckInOptionGrid } from './CheckInOptionGrid';
 export { default as SuccessState } from './SuccessState';
+export { default as CheckInBanner } from './CheckInBanner';

@@ -1,16 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Lock } from 'lucide-react-native';
 import { FontFamily, FontSize } from '../src/constants/typography';
 import Colors from '../src/constants/colors';
+import { useChangePasswordMutation } from '../src/redux/rtk/authApi';
+import Toast from 'react-native-toast-message';
 
 interface PasswordFieldProps {
   label: string;
   placeholder: string;
 }
 
-const PasswordField = ({ label, placeholder }: PasswordFieldProps) => (
+const PasswordField = ({ label, placeholder, value, onChangeText }: PasswordFieldProps & { value: string; onChangeText: (text: string) => void }) => (
   <View style={styles.fieldContainer}>
     <Text style={styles.fieldLabel}>{label}</Text>
     <View style={styles.inputContainer}>
@@ -20,6 +23,8 @@ const PasswordField = ({ label, placeholder }: PasswordFieldProps) => (
         placeholder={placeholder} 
         placeholderTextColor="#94A3B8"
         secureTextEntry
+        value={value}
+        onChangeText={onChangeText}
       />
     </View>
   </View>
@@ -27,6 +32,61 @@ const PasswordField = ({ label, placeholder }: PasswordFieldProps) => (
 
 const ChangePasswordScreen = () => {
   const router = useRouter();
+  const [changePassword, { isLoading }] = useChangePasswordMutation();
+
+  const [currentPassword, setCurrentPassword] = React.useState('');
+  const [newPassword, setNewPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+
+  const handleUpdatePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Toast.show({
+        type: 'error',
+        text1: 'Required Fields',
+        text2: 'Please fill in all password fields.',
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Toast.show({
+        type: 'error',
+        text1: 'Password Mismatch',
+        text2: 'New password and confirm password do not match.',
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid Password',
+        text2: 'New password must be at least 8 characters long.',
+      });
+      return;
+    }
+
+    try {
+      await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      }).unwrap();
+
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Password updated successfully.',
+      });
+      router.back();
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error?.data?.message || 'Failed to update password.',
+      });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -48,17 +108,42 @@ const ChangePasswordScreen = () => {
             Enter your current password and your new password to update your account security.
           </Text>
 
-          <PasswordField label="CURRENT PASSWORD" placeholder="••••••••" />
-          <PasswordField label="NEW PASSWORD" placeholder="••••••••" />
-          <PasswordField label="CONFIRM NEW PASSWORD" placeholder="••••••••" />
+          <PasswordField 
+            label="CURRENT PASSWORD" 
+            placeholder="••••••••" 
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+          />
+          <PasswordField 
+            label="NEW PASSWORD" 
+            placeholder="••••••••" 
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+          <PasswordField 
+            label="CONFIRM NEW PASSWORD" 
+            placeholder="••••••••" 
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
 
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
+            <TouchableOpacity 
+              style={styles.cancelButton} 
+              onPress={() => router.back()}
+              disabled={isLoading}
+            >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.saveButton} onPress={() => router.back()}>
-              <Text style={styles.saveButtonText}>Update Password</Text>
+            <TouchableOpacity 
+              style={[styles.saveButton, isLoading && { opacity: 0.7 }]} 
+              onPress={handleUpdatePassword}
+              disabled={isLoading}
+            >
+              <Text style={styles.saveButtonText}>
+                {isLoading ? 'Updating...' : 'Update Password'}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

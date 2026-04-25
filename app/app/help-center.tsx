@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, ChevronDown, ChevronUp, UserCircle } from 'lucide-react-native';
 import { FontFamily, FontSize } from '../src/constants/typography';
 import Colors from '../src/constants/colors';
+import { useGetHelpCenterQuery } from '../src/redux/rtk/authApi';
 
 interface FAQItemProps {
   question: string;
@@ -33,25 +35,20 @@ const FAQItem = ({ question, answer, isOpen, onToggle }: FAQItemProps) => (
 const HelpCenterScreen = () => {
   const router = useRouter();
   const [openIndex, setOpenIndex] = useState(0);
+  const { data, isLoading } = useGetHelpCenterQuery();
 
-  const faqs = [
-    {
-      question: "What is OPS Score?",
-      answer: "Your overall performance score based on your daily and weekly inputs. It reflects your peak readiness across mental and physical metrics."
-    },
-    {
-      question: "How is my score calculated?",
-      answer: "Your score is calculated using an advanced algorithm that weights your sleep, activity, stress, and physical capacity data."
-    },
-    {
-      question: "How can I improve my score?",
-      answer: "You can improve your score by maintaining consistent sleep patterns, managing stress levels, and following recommended activity goals."
-    },
-    {
-      question: "How often should I check in?",
-      answer: "We recommend checking in daily to get the most accurate reflection of your performance trends and peak readiness."
-    }
-  ];
+  const helpData = data?.data;
+  const faqs = helpData?.faqs || [];
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#0D2B6E" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -65,9 +62,9 @@ const HelpCenterScreen = () => {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>How can we help?</Text>
+        <Text style={styles.title}>{helpData?.title || 'How can we help?'}</Text>
         <Text style={styles.description}>
-          Search our knowledge base or browse FAQs below
+          {helpData?.subtitle || 'Search our knowledge base or browse FAQs below'}
         </Text>
 
         <View style={styles.searchContainer}>
@@ -93,9 +90,9 @@ const HelpCenterScreen = () => {
 
         <View style={styles.contactCard}>
           <View style={styles.contactContent}>
-            <Text style={styles.contactTitle}>Still need help?</Text>
+            <Text style={styles.contactTitle}>{helpData?.support_cta_title || 'Still need help?'}</Text>
             <Text style={styles.contactText}>
-              Our support team is available 24/7 to assist you with any questions.
+              {helpData?.support_cta_description || 'Our support team is available 24/7 to assist you with any questions.'}
             </Text>
             <TouchableOpacity 
               style={styles.contactButton}

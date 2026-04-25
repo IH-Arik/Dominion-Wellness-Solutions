@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useDeleteAccountMutation } from '../../src/redux/rtk/authApi';
+import { useDeleteAccountMutation, useGetAccountSummaryQuery } from '../../src/redux/rtk/authApi';
 import { useAppDispatch } from '../../src/redux/reduxHooks';
 import { logout } from '../../src/redux/slices/authSlice';
 import Colors from '../../src/constants/colors';
@@ -24,6 +24,7 @@ export default function ProfileScreen() {
   const [isLogoutVisible, setIsLogoutVisible] = useState(false);
   const [isDeleteVisible, setIsDeleteVisible] = useState(false);
 
+  const { data: summaryData, isLoading, isError, refetch } = useGetAccountSummaryQuery();
   const [deleteAccount, { isLoading: isDeleting }] = useDeleteAccountMutation();
 
   const handleLogout = () => {
@@ -49,6 +50,21 @@ export default function ProfileScreen() {
     }
   };
 
+  if (isLoading && !summaryData) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading Profile...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const { profile, organization, performance_profile } = summaryData?.data || {
+    profile: { name: '', email: '', age: null, profile_image: null },
+    organization: { organization_name: null, organization_code: null, subtitle: null },
+    performance_profile: { current_ops_score: 0, strongest_driver: null, focus_driver: null }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -56,11 +72,14 @@ export default function ProfileScreen() {
         style={styles.container} 
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={refetch} color={Colors.primary} />
+        }
       >
         <AccountHeader />
-        <ProfileInfoCard />
-        <OrganizationCard />
-        <PerformanceProfileCard />
+        <ProfileInfoCard profile={profile} />
+        <OrganizationCard organization={organization} />
+        <PerformanceProfileCard performance_profile={performance_profile} />
         <SettingsSupportList />
         
         <View style={styles.footer}>
@@ -80,7 +99,7 @@ export default function ProfileScreen() {
           
           <Text style={styles.versionText}>DWS Performance v2.4.1</Text>
         </View>
-
+ 
         <ConfirmationModal 
           visible={isLogoutVisible}
           title="Do you want to Log out?"
@@ -109,6 +128,17 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: "#F6FCFB",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontFamily: FontFamily.medium,
+    color: '#64748B',
   },
   footer: {
     paddingHorizontal: 20,

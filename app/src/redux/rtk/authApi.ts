@@ -146,10 +146,80 @@ export interface ResetPasswordRequest extends VerifyCodeRequest {
   confirm_password: string;
 }
 
+export interface AccountSummaryResponse {
+  success: boolean;
+  message: string;
+  data: {
+    profile: {
+      name: string;
+      email: string;
+      age: number | null;
+      profile_image: string | null;
+    };
+    organization: {
+      organization_name: string | null;
+      organization_code: string | null;
+      subtitle: string | null;
+    };
+    performance_profile: {
+      current_ops_score: number;
+      strongest_driver: string | null;
+      focus_driver: string | null;
+    };
+    app_version: string;
+  };
+}
+
 export interface CommonResponse {
   success: boolean;
   message: string;
   data: any;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
+}
+
+export interface LegalResponse {
+  success: boolean;
+  message: string;
+  data: {
+    title: string;
+    items: string[];
+  };
+}
+
+export interface FAQ {
+  question: string;
+  answer: string;
+}
+
+export interface HelpCenterResponse {
+  success: boolean;
+  message: string;
+  data: {
+    title: string;
+    subtitle: string;
+    faqs: FAQ[];
+    support_cta_title: string;
+    support_cta_description: string;
+  };
+}
+
+export interface SupportRequest {
+  issue: string;
+}
+
+export interface SupportResponse {
+  success: boolean;
+  message: string;
+  data: {
+    email: string;
+    issue: string;
+    estimated_response: string;
+  };
 }
 
 export const authApi = api.injectEndpoints({
@@ -175,12 +245,37 @@ export const authApi = api.injectEndpoints({
         params: { organization_name },
       }),
     }),
+    getProfile: builder.query<ProfileResponse, void>({
+      query: () => "/users/me/profile",
+      providesTags: ["Profile"],
+    }),
+    getAccountSummary: builder.query<AccountSummaryResponse, void>({
+      query: () => "/users/me/account-summary",
+      providesTags: ["Profile", "User"],
+    }),
+    updateProfile: builder.mutation<ProfileResponse, Partial<ProfileRequest>>({
+      query: (body) => ({
+        url: "/users/me/profile",
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["Profile"],
+    }),
+    uploadProfileImage: builder.mutation<CommonResponse, FormData>({
+      query: (body) => ({
+        url: "/users/me/profile-image",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Profile"],
+    }),
     createProfile: builder.mutation<ProfileResponse, ProfileRequest>({
       query: (body) => ({
         url: "/users/me/profile",
         method: "POST",
         body,
       }),
+      invalidatesTags: ["Profile"],
     }),
     submitAssessment: builder.mutation<AssessmentResponse, AssessmentRequest>({
       query: (body) => ({
@@ -230,6 +325,32 @@ export const authApi = api.injectEndpoints({
         method: "DELETE",
       }),
     }),
+    changePassword: builder.mutation<CommonResponse, ChangePasswordRequest>({
+      query: (body) => ({
+        url: "/users/me/change-password",
+        method: "POST",
+        body,
+      }),
+    }),
+    getHelpCenter: builder.query<HelpCenterResponse, void>({
+      query: () => "/users/help-center",
+    }),
+    getPrivacyPolicy: builder.query<LegalResponse, void>({
+      query: () => "/users/privacy-policy",
+    }),
+    getTerms: builder.query<LegalResponse, void>({
+      query: () => "/users/terms-of-condition",
+    }),
+    getAboutUs: builder.query<LegalResponse, void>({
+      query: () => "/users/about-us",
+    }),
+    submitSupportRequest: builder.mutation<SupportResponse, SupportRequest>({
+      query: (body) => ({
+        url: "/users/me/support-request",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
   overrideExisting: false,
 });
@@ -242,6 +363,10 @@ export const {
   useLazyGetTeamsQuery,
   useGetRolesQuery,
   useLazyGetRolesQuery,
+  useGetProfileQuery,
+  useGetAccountSummaryQuery,
+  useUpdateProfileMutation,
+  useUploadProfileImageMutation,
   useCreateProfileMutation,
   useSubmitAssessmentMutation,
   useLoginMutation,
@@ -250,4 +375,10 @@ export const {
   useVerifyResetCodeMutation,
   useResetPasswordMutation,
   useDeleteAccountMutation,
+  useChangePasswordMutation,
+  useGetHelpCenterQuery,
+  useGetPrivacyPolicyQuery,
+  useGetTermsQuery,
+  useGetAboutUsQuery,
+  useSubmitSupportRequestMutation,
 } = authApi;

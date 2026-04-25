@@ -14,6 +14,7 @@ import Colors from '../src/constants/colors';
 import { Provider } from 'react-redux';
 import { store, persistor } from '../src/redux/store';
 import { PersistGate } from 'redux-persist/integration/react';
+import Toast from 'react-native-toast-message';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -47,6 +48,7 @@ export default function RootLayout() {
           </Stack>
         </PersistGate>
       </Provider> 
+      <Toast />
     </SafeAreaProvider>
   );
 }

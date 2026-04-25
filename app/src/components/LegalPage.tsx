@@ -1,23 +1,29 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { FontFamily, FontSize } from '../constants/typography';
 
+import { ActivityIndicator } from 'react-native';
+import { useGetPrivacyPolicyQuery, useGetTermsQuery, useGetAboutUsQuery } from '../redux/rtk/authApi';
+
 interface LegalPageProps {
   title: string;
+  type: 'privacy' | 'terms' | 'about';
 }
 
-const LegalPage = ({ title }: LegalPageProps) => {
+const LegalPage = ({ title, type }: LegalPageProps) => {
   const router = useRouter();
 
-  const points = [
-    "Lorem ipsum dolor sit amet consectetur. Imperdiet iaculis convallis bibendum massa id elementum consectetur neque mauris.",
-    "Lorem ipsum dolor sit amet consectetur. Imperdiet iaculis convallis bibendum massa id elementum consectetur neque mauris.",
-    "Lorem ipsum dolor sit amet consectetur. Imperdiet iaculis convallis bibendum massa id elementum consectetur neque mauris.",
-    "Lorem ipsum dolor sit amet consectetur. Imperdiet iaculis convallis bibendum massa id elementum consectetur neque mauris.",
-    "Lorem ipsum dolor sit amet consectetur. Imperdiet iaculis convallis bibendum massa id elementum consectetur neque mauris.",
-  ];
+  const privacyQuery = useGetPrivacyPolicyQuery(undefined, { skip: type !== 'privacy' });
+  const termsQuery = useGetTermsQuery(undefined, { skip: type !== 'terms' });
+  const aboutQuery = useGetAboutUsQuery(undefined, { skip: type !== 'about' });
+
+  const currentQuery = type === 'privacy' ? privacyQuery : type === 'terms' ? termsQuery : aboutQuery;
+  const { data, isLoading } = currentQuery;
+
+  const points = data?.data?.items || [];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -30,14 +36,20 @@ const LegalPage = ({ title }: LegalPageProps) => {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {points.map((point, index) => (
-          <View key={index} style={styles.pointRow}>
-            <Text style={styles.pointNumber}>{index + 1}.</Text>
-            <Text style={styles.pointText}>{point}</Text>
-          </View>
-        ))}
-      </ScrollView>
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#0D2B6E" />
+        </View>
+      ) : (
+        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+          {points.map((point, index) => (
+            <View key={index} style={styles.pointRow}>
+              <Text style={styles.pointNumber}>{index + 1}.</Text>
+              <Text style={styles.pointText}>{point}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };

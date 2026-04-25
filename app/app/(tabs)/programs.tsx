@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,108 +6,125 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
-import { Menu, Bell, Clock, TrendingUp, Activity } from "lucide-react-native";
+import { Menu, Bell, Clock, TrendingUp, Activity, AlertCircle } from "lucide-react-native";
 import { FontFamily } from "../../src/constants/typography";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useGetLatestInsightQuery } from "../../src/redux/rtk/questionsApi";
 
-// ─── Data Arrays for Rendering ───
-const CORE_DRIVERS = [
-  {
-    id: 1,
-    title: "Physical Capacity",
-    short: "PC",
-    desc: "Your physical activity habits support strong daily energy levels.",
-    score: 92,
-    tag: "STRONG",
-    tagColor: "#166534",
-    tagBg: "#DCFCE7",
-    borderColor: "#22C55E",
-  },
-  {
-    id: 2,
-    title: "Mental Resilience",
-    short: "MR",
-    desc: "Your focus and stress management patterns remain stable",
-    score: 85,
-    tag: "STABLE",
-    tagColor: "#0F766E",
-    tagBg: "#CCFBF1",
-    borderColor: "#0ea5e9", // A vivid cyan/teal
-  },
-  {
-    id: 3,
-    title: "Morale & Cohesion",
-    short: "MC",
-    desc: "Your sense of connection and recognition within your environment remains stable",
-    score: 88,
-    tag: "STABLE",
-    tagColor: "#A16207",
-    tagBg: "#FEF9C3",
-    borderColor: "#EAB308",
-  },
-  {
-    id: 4,
-    title: "Purpose Alignment",
-    short: "PA",
-    desc: "Connection to long-term goals is fluctuating",
-    score: 75,
-    tag: "DEVELOPING",
-    tagColor: "#374151",
-    tagBg: "#F3F4F6",
-    borderColor: "#9CA3AF",
-  },
-  {
-    id: 5,
-    title: "Recovery Capacity",
-    short: "RC",
-    desc: "Your recovery patterns suggest inconsistent sleep or rest.",
-    score: 58,
-    tag: "NEEDS ATTENTION",
-    tagColor: "#991B1B",
-    tagBg: "#FEE2E2",
-    borderColor: "#EF4444",
-  },
-];
+// ─── Helpers for Dynamic Data ───
 
-const RECOMMENDED_ACTIONS = [
-  {
-    id: 1,
-    title: "Sleep Recovery",
-    desc: "Aim for 7-8 hours of sleep tonight",
-    bgColor: "#00A896", // Teal
-  },
-  {
-    id: 2,
-    title: "Recovery Break",
-    desc: "Take a short 10-minute recovery break today",
-    bgColor: "#00A896", // Teal
-  },
-  {
-    id: 3,
-    title: "Light Movement",
-    desc: "A short walk or stretch can help restore focus",
-    bgColor: "#00A896", // Teal
-  },
-  {
-    id: 4,
-    title: "Recovery Reset",
-    desc: "Take a short break to reset your energy and focus.",
-    bgColor: "#001F3F", // Dark Blue
-  },
-];
+const DRIVER_LABELS: Record<string, { title: string; short: string; borderColor: string }> = {
+  PC: { title: "Physical Capacity", short: "PC", borderColor: "#22C55E" },
+  MR: { title: "Mental Resilience", short: "MR", borderColor: "#0ea5e9" },
+  MC: { title: "Morale & Cohesion", short: "MC", borderColor: "#EAB308" },
+  PA: { title: "Purpose Alignment", short: "PA", borderColor: "#9CA3AF" },
+  RC: { title: "Recovery Capacity", short: "RC", borderColor: "#EF4444" },
+};
+
+const getScoreTag = (score: number) => {
+  if (score >= 85) return { label: "STRONG", color: "#166534", bg: "#DCFCE7" };
+  if (score >= 70) return { label: "STABLE", color: "#0F766E", bg: "#CCFBF1" };
+  if (score >= 60) return { label: "DEVELOPING", color: "#374151", bg: "#F3F4F6" };
+  return { label: "NEEDS ATTENTION", color: "#991B1B", bg: "#FEE2E2" };
+};
+
+const formatTimeAgo = (isoString: string) => {
+  if (!isoString) return "Unknown";
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInMins = Math.floor(diffInMs / 60000);
+
+  if (diffInMins < 1) return "Just now";
+  if (diffInMins < 60) return `${diffInMins}m ago`;
+  const diffInHours = Math.floor(diffInMins / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  return date.toLocaleDateString();
+};
 
 export default function InsightScreen() {
   const insets = useSafeAreaInsets();
+  const { data: response, isLoading, isFetching, error, refetch } = useGetLatestInsightQuery();
+
+  const insightData = response?.data;
+
+  const coreDrivers = useMemo(() => {
+    if (!insightData?.dimension_scores) return [];
+    return Object.entries(insightData.dimension_scores).map(([key, score], index) => {
+      const meta = DRIVER_LABELS[key] || { title: key, short: key, borderColor: "#9CA3AF" };
+      const tag = getScoreTag(score);
+      return {
+        id: index,
+        title: meta.title,
+        short: meta.short,
+        score: Math.round(score),
+        tag: tag.label,
+        tagColor: tag.color,
+        tagBg: tag.bg,
+        borderColor: meta.borderColor,
+        desc: getDriverDescription(key, score),
+      };
+    });
+  }, [insightData]);
+
+  const recommendedActions = useMemo(() => {
+    if (!insightData?.improvement_plan) return [];
+    // The backend returns a string with bullet points "- Recommendation"
+    return insightData.improvement_plan
+      .split("\n")
+      .filter((line) => line.trim().length > 0)
+      .map((line, index) => {
+        const text = line.replace(/^[-\s*•]+/, "").trim();
+        // Extract title if there's a colon, otherwise use generic title
+        const [titlePart, ...descParts] = text.split(":");
+        return {
+          id: index,
+          title: descParts.length > 0 ? titlePart.trim() : "Recommended Action",
+          desc: descParts.length > 0 ? descParts.join(":").trim() : titlePart.trim(),
+          bgColor: index % 2 === 0 ? "#00A896" : "#001F3F",
+        };
+      });
+  }, [insightData]);
+
+  const onRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#00A896" />
+        <Text style={styles.loadingText}>Analyzing performance data...</Text>
+      </View>
+    );
+  }
+
+  if (error || !insightData) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <AlertCircle size={48} color="#EF4444" />
+        <Text style={styles.errorText}>Could not fetch latest insights.</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: Math.max(insets.top, 20) + 16, paddingBottom: 100 }, // extra padding bottom for tabs
+          { paddingTop: Math.max(insets.top, 20) + 16, paddingBottom: 100 },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={onRefresh} tintColor="#00A896" />
+        }
       >
         {/* ─── Header ─── */}
         <View style={styles.header}>
@@ -124,7 +141,7 @@ export default function InsightScreen() {
         {/* ─── OPS Analysis Header ─── */}
         <View style={styles.sectionHeaderWrap}>
           <Text style={styles.sectionTitle}>OPS Analysis</Text>
-          <Text style={styles.liveSyncText}>LIVE SYNC</Text>
+          <Text style={styles.liveSyncText}>{insightData.live_sync_status || "LIVE SYNC"}</Text>
         </View>
 
         {/* ─── Top Cards (Overall & Status) ─── */}
@@ -133,22 +150,29 @@ export default function InsightScreen() {
           <View style={styles.scoreCard}>
             <Text style={styles.cardSmallTitle}>OVERALL SCORE</Text>
             <View style={styles.scoreRow}>
-              <Text style={styles.hugeScore}>88</Text>
+              <Text style={styles.hugeScore}>{Math.round(insightData.overall_score)}</Text>
+              {/* Note: Backend doesn't provide delta here yet, but we could calculate it if history is available */}
               <Text style={styles.scoreDelta}>+5%</Text>
             </View>
-            {/* Progress Bar */}
             <View style={styles.progressBarTrack}>
-              <View style={[styles.progressBarFill, { width: "88%" }]} />
+              <View
+                style={[
+                  styles.progressBarFill,
+                  { width: `${insightData.overall_score}%` as any },
+                ]}
+              />
             </View>
           </View>
 
           {/* STATUS */}
           <View style={styles.statusCard}>
             <Text style={styles.cardSmallTitle}>STATUS</Text>
-            <Text style={styles.statusText}>Optimal</Text>
+            <Text style={styles.statusText}>{insightData.condition}</Text>
             <View style={styles.updatedRow}>
               <Clock size={12} color="#9CA3AF" />
-              <Text style={styles.updatedText}>Updated 2m ago</Text>
+              <Text style={styles.updatedText}>
+                Updated {formatTimeAgo(insightData.last_updated_at)}
+              </Text>
             </View>
           </View>
         </View>
@@ -160,12 +184,7 @@ export default function InsightScreen() {
             <Text style={styles.insightTitle}>AI INSIGHT</Text>
           </View>
           <Text style={styles.insightBodyText}>
-            Good morning! Your recovery capacity is improving, but your focus
-            levels have declined slightly over the past few days.
-          </Text>
-          <Text style={[styles.insightBodyText, { marginTop: 12 }]}>
-            Based on these patterns, improving sleep consistency and daily
-            recovery habits may help maintain stronger focus.
+            {insightData.insight}
           </Text>
         </View>
 
@@ -174,7 +193,7 @@ export default function InsightScreen() {
           Core Drivers
         </Text>
         <View style={styles.driversList}>
-          {CORE_DRIVERS.map((item) => (
+          {coreDrivers.map((item) => (
             <View key={item.id} style={styles.driverCard}>
               <View
                 style={[styles.driverLeftBorder, { backgroundColor: item.borderColor }]}
@@ -201,41 +220,63 @@ export default function InsightScreen() {
         </View>
 
         {/* ─── Recommended Actions ─── */}
-        <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 16 }]}>
-          Recommended Actions
-        </Text>
-        <View style={styles.actionsList}>
-          {RECOMMENDED_ACTIONS.map((action) => (
-            <TouchableOpacity
-              key={action.id}
-              style={[styles.actionCard, { backgroundColor: action.bgColor }]}
-              activeOpacity={0.9}
-            >
-              <Text style={styles.actionTitle}>{action.title}</Text>
-              <Text style={styles.actionDesc}>{action.desc}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {recommendedActions.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 16 }]}>
+              Recommended Actions
+            </Text>
+            <View style={styles.actionsList}>
+              {recommendedActions.map((action) => (
+                <TouchableOpacity
+                  key={action.id}
+                  style={[styles.actionCard, { backgroundColor: action.bgColor }]}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.actionTitle}>{action.title}</Text>
+                  <Text style={styles.actionDesc}>{action.desc}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
 
         {/* ─── Trend Insight Dashed Box ─── */}
-        <View style={[styles.dashedInsightBox, { marginTop: 24, marginBottom: 16 }]}>
-          <View style={styles.insightHeaderRow}>
-            <Activity size={16} color="#1E3A5F" strokeWidth={2.5} />
-            <Text style={styles.insightTitle}>TREND INSIGHT</Text>
+        {insightData.trend_insight && (
+          <View style={[styles.dashedInsightBox, { marginTop: 24, marginBottom: 16 }]}>
+            <View style={styles.insightHeaderRow}>
+              <Activity size={16} color="#1E3A5F" strokeWidth={2.5} />
+              <Text style={styles.insightTitle}>TREND INSIGHT</Text>
+            </View>
+            <Text style={styles.insightBodyText}>
+              {insightData.trend_insight}
+            </Text>
           </View>
-          <Text style={styles.insightBodyText}>
-            Your recent responses suggest stronger performance earlier in the day.
-          </Text>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
 }
 
+function getDriverDescription(key: string, score: number): string {
+  const descriptions: Record<string, string> = {
+    PC: score >= 85 ? "Your physical activity habits support strong daily energy levels." : "Inconsistent energy levels suggest a need for more regular movement.",
+    MR: score >= 85 ? "Your focus and stress management patterns remain stable." : "Recent patterns suggest fluctuations in focus or stress resilience.",
+    MC: score >= 85 ? "Your sense of connection and recognition within your environment is high." : "There may be opportunities to strengthen team cohesion or recognition.",
+    PA: score >= 85 ? "Strong connection to long-term goals and daily motivation." : "Motivation levels suggest some fluctuation in goal alignment.",
+    RC: score >= 85 ? "Excellent recovery patterns and consistent sleep quality." : "Recovery patterns suggest inconsistent sleep or rest periods.",
+  };
+  return descriptions[key] || "Monitor this driver to optimize your overall performance.";
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F6FAF9", // Very light greenish-white background
+    backgroundColor: "#F6FAF9",
+  },
+  centerContent: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -254,13 +295,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: FontFamily.medium,
     fontSize: 18,
-    color: "#1E3A5F", // Dark slate
+    color: "#1E3A5F",
   },
   bellBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#E8F0F2", // Faint blue-grey bg for bell
+    backgroundColor: "#E8F0F2",
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
@@ -272,7 +313,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#00A896", // Teal dot
+    backgroundColor: "#00A896",
     borderWidth: 1,
     borderColor: "#E8F0F2",
   },
@@ -374,9 +415,9 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
   },
   dashedInsightBox: {
-    backgroundColor: "#F4F9FB", // Very faint blue
+    backgroundColor: "#F4F9FB",
     borderWidth: 1,
-    borderColor: "#D1E3EC", // Dashed border color
+    borderColor: "#D1E3EC",
     borderStyle: "dashed",
     borderRadius: 16,
     padding: 16,
@@ -488,5 +529,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#FFFFFF",
     opacity: 0.9,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontFamily: FontFamily.medium,
+    color: "#1E3A5F",
+  },
+  errorText: {
+    marginTop: 12,
+    fontFamily: FontFamily.medium,
+    color: "#EF4444",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryBtn: {
+    backgroundColor: "#00A896",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  retryBtnText: {
+    color: "#FFFFFF",
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
   },
 });

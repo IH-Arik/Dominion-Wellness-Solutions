@@ -4,7 +4,15 @@ import { Building2 } from "lucide-react-native";
 import { FontFamily, FontSize } from "../constants/typography";
 import Colors from "../constants/colors";
 
-const OrganizationCard = () => {
+interface OrganizationCardProps {
+  organization: {
+    organization_name: string | null;
+    organization_code: string | null;
+    subtitle: string | null;
+  };
+}
+
+const OrganizationCard = ({ organization }: OrganizationCardProps) => {
   return (
     <View style={styles.container}>
       <Text style={styles.sectionLabel}>ORGANIZATION</Text>
@@ -13,8 +21,10 @@ const OrganizationCard = () => {
           <Building2 size={24} color="#1CC8B0" />
         </View>
         <View style={styles.textContainer}>
-          <Text style={styles.title}>Global Tech Solutions</Text>
-          <Text style={styles.subtitle}>GT-9921 • Product Design</Text>
+          <Text style={styles.title}>{organization.organization_name || 'Not Assigned'}</Text>
+          <Text style={styles.subtitle}>
+            {organization.subtitle || 'No Details Provided'}
+          </Text>
         </View>
       </View>
     </View>
@@ -55,6 +65,7 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     gap: 2,
+    flex: 1,
   },
   title: {
     fontFamily: FontFamily.bold,

@@ -1,12 +1,45 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, UserCircle, Lock } from 'lucide-react-native';
 import { FontFamily, FontSize } from '../src/constants/typography';
 import Colors from '../src/constants/colors';
+import { useSubmitSupportRequestMutation, useGetAccountSummaryQuery } from '../src/redux/rtk/authApi';
+import Toast from 'react-native-toast-message';
+import { ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ContactSupportScreen = () => {
   const router = useRouter();
+  const { data: summaryData } = useGetAccountSummaryQuery();
+  const [submitRequest, { isLoading }] = useSubmitSupportRequestMutation();
+  const [issue, setIssue] = React.useState('');
+
+  const handleSubmit = async () => {
+    if (!issue.trim()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Required',
+        text2: 'Please describe your issue.',
+      });
+      return;
+    }
+
+    try {
+      await submitRequest({ issue: issue.trim() }).unwrap();
+      Alert.alert(
+        "Request Submitted",
+        "We have received your request and will get back to you soon.",
+        [{ text: "OK", onPress: () => router.back() }]
+      );
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error?.data?.message || 'Failed to submit support request.',
+      });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -43,6 +76,8 @@ const ContactSupportScreen = () => {
                 multiline
                 numberOfLines={6}
                 textAlignVertical="top"
+                value={issue}
+                onChangeText={setIssue}
               />
             </View>
           </View>
@@ -52,7 +87,7 @@ const ContactSupportScreen = () => {
             <View style={styles.inputContainer}>
               <TextInput 
                 style={styles.textInput} 
-                value="john.doe@email.com"
+                value={summaryData?.data?.profile?.email || ''}
                 editable={false}
               />
               <Lock size={18} color="#94A3B8" />
@@ -60,9 +95,19 @@ const ContactSupportScreen = () => {
             <Text style={styles.fieldInfo}>This is the email associated with your performance account.</Text>
           </View>
 
-          <TouchableOpacity style={styles.submitButton} onPress={() => router.back()}>
-            <Text style={styles.submitButtonText}>Submit Request</Text>
-            <ArrowLeft size={18} color={Colors.white} style={{ transform: [{ rotate: '180deg' }], marginLeft: 8 }} />
+          <TouchableOpacity 
+            style={[styles.submitButton, isLoading && { opacity: 0.7 }]} 
+            onPress={handleSubmit}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={Colors.white} />
+            ) : (
+              <>
+                <Text style={styles.submitButtonText}>Submit Request</Text>
+                <ArrowLeft size={18} color={Colors.white} style={{ transform: [{ rotate: '180deg' }], marginLeft: 8 }} />
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -145,7 +190,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
     fontSize: FontSize.sm,
     color: '#1E293B',
-    height: '100%',
+    // height: '100%',
   },
   inputContainer: {
     backgroundColor: '#EDF2F7', // Slightly grey for disabled look

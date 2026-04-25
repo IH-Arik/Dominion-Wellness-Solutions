@@ -4,7 +4,11 @@ import { Sparkles } from 'lucide-react-native';
 import { FontFamily, FontSize } from '../constants/typography';
 import Colors from '../constants/colors';
 
-const PerformanceSummary = () => {
+interface PerformanceSummaryProps {
+  summary: string;
+}
+
+const PerformanceSummary = ({ summary }: PerformanceSummaryProps) => {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -13,17 +17,12 @@ const PerformanceSummary = () => {
       </View>
       
       <View style={styles.content}>
-        <Text style={styles.text}>
-          Your <Text style={styles.highlightTeal}>physical capacity</Text> is strong, but <Text style={styles.highlightRed}>mental resilience</Text> has declined slightly over the past week.
-        </Text>
-        
-        <Text style={styles.subtext}>
-          Improving sleep and recovery habits may help stabilize performance.
-        </Text>
+        <Text style={styles.text}>{summary}</Text>
       </View>
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   card: {

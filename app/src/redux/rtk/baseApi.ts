@@ -1,29 +1,34 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import { Platform } from 'react-native';
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { Platform } from "react-native";
 
-const BASE_URL = __DEV__ 
-  ? `http://10.10.20.44:8000/api/v1`
-  : 'https://api.yourdomain.com/api/v1';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export const api = createApi({
-  reducerPath: 'api',
-  baseQuery: fetchBaseQuery({ 
+  reducerPath: "api",
+  baseQuery: fetchBaseQuery({
     baseUrl: BASE_URL,
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as any).auth.accessToken;
       console.log("API Header - Token exists:", !!token);
       if (token) {
-        headers.set('authorization', `Bearer ${token}`);
+        headers.set("authorization", `Bearer ${token}`);
       }
       return headers;
     },
   }),
-  tagTypes: ['CheckInStatus', 'Dashboard', 'Profile', 'User', 'PerformanceReport', 'ChatHistory'],
+  tagTypes: [
+    "CheckInStatus",
+    "Dashboard",
+    "Profile",
+    "User",
+    "PerformanceReport",
+    "ChatHistory",
+  ],
   endpoints: (builder) => ({
     getUsers: builder.query({
-      query: () => '/users',
+      query: () => "/users",
     }),
   }),
-})
+});
 
-export const { useGetUsersQuery } = api
+export const { useGetUsersQuery } = api;

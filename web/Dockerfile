@@ -25,8 +25,11 @@ RUN apk add --no-cache nginx
 
 WORKDIR /app
 ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
 COPY --from=runner /app /app
+RUN rm -rf /app/.next/standalone/.next && ln -s /app/.next /app/.next/standalone/.next
 COPY nginx/default.conf /etc/nginx/http.d/default.conf
 
 EXPOSE 80

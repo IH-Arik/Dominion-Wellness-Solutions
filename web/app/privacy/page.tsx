@@ -1,5 +1,7 @@
 import styles from "./page.module.css";
 
+export const dynamic = "force-dynamic";
+
 interface LegalResponse {
   success: boolean;
   message: string;
@@ -17,7 +19,6 @@ async function getPrivacyPolicy(): Promise<LegalResponse | null> {
       return null;
     }
     
-    // We fetch with cache revalidation every hour so it stays fast but updates
     const res = await fetch(`${apiUrl}/users/privacy-policy`, { next: { revalidate: 3600 } });
     if (!res.ok) throw new Error(`Failed to fetch privacy policy: ${res.status}`);
     return await res.json();

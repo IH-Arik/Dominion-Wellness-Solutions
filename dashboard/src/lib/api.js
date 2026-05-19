@@ -1,6 +1,8 @@
 import axios from "axios";
 
 const apiBaseURL = import.meta.env.VITE_API_BASE_URL?.trim() || "/api";
+const dashboardBasePath = import.meta.env.BASE_URL || "/";
+const signInPath = new URL("sign-in", `http://localhost${dashboardBasePath}`).pathname;
 
 const api = axios.create({
   baseURL: apiBaseURL,
@@ -31,8 +33,8 @@ api.interceptors.response.use(
       // Clear storage and redirect to login if unauthorized
       localStorage.removeItem("access_token");
       localStorage.removeItem("user");
-      if (window.location.pathname !== "/sign-in") {
-        window.location.href = "/sign-in";
+      if (window.location.pathname !== signInPath) {
+        window.location.href = signInPath;
       }
     }
     return Promise.reject(error);

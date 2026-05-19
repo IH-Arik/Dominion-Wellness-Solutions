@@ -17,6 +17,7 @@ import { BsBadgeAd } from "react-icons/bs";
 import { RiDashboardHorizontalLine } from "react-icons/ri";
 
 const Sidebar = ({ closeDrawer }) => {
+  const dashboardBasePath = import.meta.env.BASE_URL || "/";
   const location = useLocation();
   const userData = getStoredUser() || {};
   const role = userData.role || localStorage.getItem("role") || "";
@@ -30,7 +31,7 @@ const Sidebar = ({ closeDrawer }) => {
     localStorage.removeItem("user");
     // navigate isn't available outside component body usually, but 
     // we can use window.location or pass it from parent.
-    window.location.href = "/sign-in";
+    window.location.href = new URL("sign-in", window.location.origin + dashboardBasePath).toString();
   };
 
   const menuItems = [

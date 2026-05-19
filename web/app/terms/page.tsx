@@ -1,5 +1,7 @@
 import styles from "../privacy/page.module.css";
 
+export const dynamic = "force-dynamic";
+
 interface LegalResponse {
   success: boolean;
   message: string;
@@ -17,7 +19,6 @@ async function getTerms(): Promise<LegalResponse | null> {
       return null;
     }
     
-    // We fetch with cache revalidation every hour so it stays fast but updates
     const res = await fetch(`${apiUrl}/users/terms-of-condition`, { next: { revalidate: 3600 } });
     if (!res.ok) throw new Error(`Failed to fetch terms: ${res.status}`);
     return await res.json();

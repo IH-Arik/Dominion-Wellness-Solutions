@@ -23,72 +23,77 @@ import UsersDetails from "../Pages/Users/UsersDetails";
 import AuditLogs from "../Pages/AuditLogs/AuditLogs";
 import CompanyDashboard from "../Pages/CompanyDashboard/CompanyDashboard";
 
-export const router = createBrowserRouter([
+export const router = createBrowserRouter(
+  [
+    {
+      path: "/sign-in",
+      element: <SignIn />,
+    },
+    {
+      path: "/sign-up",
+      element: <SignUp />,
+    },
+    {
+      path: "/forgate-password",
+      element: <ForgatePassword />,
+    },
+    {
+      path: "/verify-code",
+      element: <VerifyCode />,
+    },
+    {
+      path: "/new-password",
+      element: <NewPass />,
+    },
+    {
+      element: <PrivateRoute />,
+      children: [
+        {
+          path: "/",
+          element: <MainLayout />,
+          children: [
+            { path: "/", element: <Dashboard /> },
+            { path: "/dashboard", element: <Dashboard /> },
+            {
+              path: "/dashboard/burnout-recommendations",
+              element: <BurnoutRecommendations />,
+            },
+            {
+              path: "/dashboard/burnout-risk-details",
+              element: <BurnoutRiskDetails />,
+            },
+            {
+              path: "/team-members",
+              element: (
+                <LeaderOnlyRoute>
+                  <TeamMembers />
+                </LeaderOnlyRoute>
+              ),
+            },
+            {
+              path: "/team-profile",
+              element: (
+                <LeaderOnlyRoute>
+                  <TeamProfileView />
+                </LeaderOnlyRoute>
+              ),
+            },
+            { path: "/organization", element: <Organizations /> },
+            { path: "/users", element: <Users /> },
+            { path: "/user-details", element: <UsersDetails /> },
+            { path: "/audit-logs", element: <AuditLogs /> },
+            { path: "/ai-insights", element: <AiInsights /> },
+            { path: "/company-dashboard", element: <CompanyDashboard /> },
+            { path: "/report", element: <Report /> },
+            { path: "/risk-alerts", element: <RiskAlerts /> },
+            { path: "/action-history", element: <ActionHistory /> },
+            { path: "/settings", element: <Settings /> },
+          ],
+        },
+      ],
+    },
+  ],
   {
-    path: "/sign-in",
-    element: <SignIn />,
-  },
-  {
-    path: "/sign-up",
-    element: <SignUp />,
-  },
-  {
-    path: "/forgate-password",
-    element: <ForgatePassword />,
-  },
-  {
-    path: "/verify-code",
-    element: <VerifyCode />,
-  },
-  {
-    path: "/new-password",
-    element: <NewPass />,
-  },
-  {
-    element: <PrivateRoute />,
-    children: [
-      {
-        path: "/",
-        element: <MainLayout />,
-        children: [
-          { path: "/", element: <Dashboard /> },
-          { path: "/dashboard", element: <Dashboard /> },
-          {
-            path: "/dashboard/burnout-recommendations",
-            element: <BurnoutRecommendations />,
-          },
-          {
-            path: "/dashboard/burnout-risk-details",
-            element: <BurnoutRiskDetails />,
-          },
-          {
-            path: "/team-members",
-            element: (
-              <LeaderOnlyRoute>
-                <TeamMembers />
-              </LeaderOnlyRoute>
-            ),
-          },
-          {
-            path: "/team-profile",
-            element: (
-              <LeaderOnlyRoute>
-                <TeamProfileView />
-              </LeaderOnlyRoute>
-            ),
-          },
-          { path: "/organization", element: <Organizations /> },
-          { path: "/users", element: <Users /> },
-          { path: "/user-details", element: <UsersDetails /> },
-          { path: "/audit-logs", element: <AuditLogs /> },
-          { path: "/ai-insights", element: <AiInsights /> },
-          { path: "/company-dashboard", element: <CompanyDashboard /> },
-          { path: "/report", element: <Report /> },
-          { path: "/risk-alerts", element: <RiskAlerts /> },
-          { path: "/action-history", element: <ActionHistory /> },
-          { path: "/settings", element: <Settings /> },
-        ],
-      },
-    ],
-  },
-]);
+    basename: import.meta.env.BASE_URL,
+  }
+);

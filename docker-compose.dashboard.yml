@@ -7,6 +7,8 @@ services:
         VITE_API_BASE_URL: /api
     container_name: dws-dashboard
     restart: unless-stopped
+    env_file:
+      - ./dashboard/.env
     environment:
       API_PROXY_TARGET: ${API_PROXY_TARGET:-http://host.docker.internal:8000}
     extra_hosts:

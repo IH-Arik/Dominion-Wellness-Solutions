@@ -8,22 +8,9 @@ services:
         VITE_APP_BASE_PATH: /dashboard/
     container_name: dws-app
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
-      APP_NAME: ${APP_NAME:-Dominion Wellness Solutions API}
-      DEBUG: ${DEBUG:-False}
-      SECRET_KEY: ${SECRET_KEY:-change-this-secret-key}
-      ALGORITHM: ${ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
-      MONGODB_URL: ${MONGODB_URL}
-      MONGODB_DB_NAME: ${MONGODB_DB_NAME:-wellness_db}
       MONGODB_TLS: ${MONGODB_TLS:-false}
-      RESEND_API_KEY: ${RESEND_API_KEY:-your-resend-api-key}
-      FROM_EMAIL: ${FROM_EMAIL:-noreply@example.com}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-your-openai-api-key}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-your-aws-access-key-id}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-your-aws-secret-access-key}
-      AWS_BUCKET_NAME: ${AWS_BUCKET_NAME:-your-aws-bucket-name}
-      AWS_REGION: ${AWS_REGION:-us-east-1}
     ports:
       - "80:80"
